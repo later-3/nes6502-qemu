@@ -59,6 +59,9 @@ config RENESAS_SCI
 config AVR_USART
     bool
 
+config NES6502_USART
+    bool
+
 config MCHP_PFSOC_MMUART
     bool
     select SERIAL
