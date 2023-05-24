@@ -80,8 +80,8 @@ typedef struct DisasContext DisasContext;
 struct DisasContext {
     DisasContextBase base;
 
-    CPUAVRState *env;
-    CPUState *cs;
+    CPU6502State *env;
+    CPU6502State *cs;
 
     target_long npc;
     uint32_t opcode;
@@ -89,30 +89,6 @@ struct DisasContext {
     /* Routine used to access memory */
     int memidx;
 
-    /*
-     * some AVR instructions can make the following instruction to be skipped
-     * Let's name those instructions
-     *     A   - instruction that can skip the next one
-     *     B   - instruction that can be skipped. this depends on execution of A
-     * there are two scenarios
-     * 1. A and B belong to the same translation block
-     * 2. A is the last instruction in the translation block and B is the last
-     *
-     * following variables are used to simplify the skipping logic, they are
-     * used in the following manner (sketch)
-     *
-     * TCGLabel *skip_label = NULL;
-     * if (ctx->skip_cond != TCG_COND_NEVER) {
-     *     skip_label = gen_new_label();
-     *     tcg_gen_brcond_tl(skip_cond, skip_var0, skip_var1, skip_label);
-     * }
-     *
-     * translate(ctx);
-     *
-     * if (skip_label) {
-     *     gen_set_label(skip_label);
-     * }
-     */
     TCGv skip_var0;
     TCGv skip_var1;
     TCGCond skip_cond;
@@ -122,7 +98,7 @@ void avr_cpu_tcg_init(void)
 {
     int i;
 
-#define AVR_REG_OFFS(x) offsetof(CPUAVRState, x)
+#define AVR_REG_OFFS(x) offsetof(CPU6502State, x)
     cpu_pc = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(pc_w), "pc");
     cpu_Cf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregC), "Cf");
     cpu_Zf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregZ), "Zf");
@@ -2650,36 +2626,22 @@ static bool canonicalize_skip(DisasContext *ctx)
     return true;
 }
 
-static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUAVRState *env = cs->env_ptr;
+    CPU6502State *env = cs->env_ptr;
     uint32_t tb_flags = ctx->base.tb->flags;
 
     ctx->cs = cs;
     ctx->env = env;
-    ctx->npc = ctx->base.pc_first / 2;
-
-    ctx->skip_cond = TCG_COND_NEVER;
-    if (tb_flags & TB_FLAGS_SKIP) {
-        ctx->skip_cond = TCG_COND_ALWAYS;
-        ctx->skip_var0 = cpu_skip;
-    }
-
-    if (tb_flags & TB_FLAGS_FULL_ACCESS) {
-        /*
-         * This flag is set by ST/LD instruction we will regenerate it ONLY
-         * with mem/cpu memory access instead of mem access
-         */
-        ctx->base.max_insns = 1;
-    }
+    // ctx->npc = ctx->base.pc_first / 2;*
 }
 
-static void avr_tr_tb_start(DisasContextBase *db, CPUState *cs)
+static void nes6502_tr_tb_start(DisasContextBase *db, CPUState *cs)
 {
 }
 
-static void avr_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
@@ -2691,59 +2653,10 @@ static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     TCGLabel *skip_label = NULL;
 
-    /* Conditionally skip the next instruction, if indicated.  */
-    if (ctx->skip_cond != TCG_COND_NEVER) {
-        skip_label = gen_new_label();
-        if (ctx->skip_var0 == cpu_skip) {
-            /*
-             * Copy cpu_skip so that we may zero it before the branch.
-             * This ensures that cpu_skip is non-zero after the label
-             * if and only if the skipped insn itself sets a skip.
-             */
-            ctx->skip_var0 = tcg_temp_new();
-            tcg_gen_mov_tl(ctx->skip_var0, cpu_skip);
-            tcg_gen_movi_tl(cpu_skip, 0);
-        }
-        if (ctx->skip_var1 == NULL) {
-            tcg_gen_brcondi_tl(ctx->skip_cond, ctx->skip_var0, 0, skip_label);
-        } else {
-            tcg_gen_brcond_tl(ctx->skip_cond, ctx->skip_var0,
-                              ctx->skip_var1, skip_label);
-            ctx->skip_var1 = NULL;
-        }
-        ctx->skip_cond = TCG_COND_NEVER;
-        ctx->skip_var0 = NULL;
-    }
-
     translate(ctx);
 
     ctx->base.pc_next = ctx->npc * 2;
 
-    if (skip_label) {
-        canonicalize_skip(ctx);
-        gen_set_label(skip_label);
-
-        switch (ctx->base.is_jmp) {
-        case DISAS_NORETURN:
-            ctx->base.is_jmp = DISAS_CHAIN;
-            break;
-        case DISAS_NEXT:
-            if (ctx->base.tb->flags & TB_FLAGS_SKIP) {
-                ctx->base.is_jmp = DISAS_TOO_MANY;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (ctx->base.is_jmp == DISAS_NEXT) {
-        target_ulong page_first = ctx->base.pc_first & TARGET_PAGE_MASK;
-
-        if ((ctx->base.pc_next - page_first) >= TARGET_PAGE_SIZE - 4) {
-            ctx->base.is_jmp = DISAS_TOO_MANY;
-        }
-    }
 }
 
 static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
@@ -2784,25 +2697,25 @@ static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void avr_tr_disas_log(const DisasContextBase *dcbase,
+static void nes6502_tr_disas_log(const DisasContextBase *dcbase,
                              CPUState *cs, FILE *logfile)
 {
     fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
     target_disas(logfile, cs, dcbase->pc_first, dcbase->tb->size);
 }
 
-static const TranslatorOps avr_tr_ops = {
-    .init_disas_context = avr_tr_init_disas_context,
-    .tb_start           = avr_tr_tb_start,
-    .insn_start         = avr_tr_insn_start,
+static const TranslatorOps nes6502_tr_ops = {
+    .init_disas_context = nes6502_tr_init_disas_context,
+    .tb_start           = nes6502_tr_tb_start,
+    .insn_start         = nes6502_tr_insn_start,
     .translate_insn     = avr_tr_translate_insn,
     .tb_stop            = avr_tr_tb_stop,
-    .disas_log          = avr_tr_disas_log,
+    .disas_log          = nes6502_tr_disas_log,
 };
 
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
                            target_ulong pc, void *host_pc)
 {
     DisasContext dc = { };
-    translator_loop(cs, tb, max_insns, pc, host_pc, &avr_tr_ops, &dc.base);
+    translator_loop(cs, tb, max_insns, pc, host_pc, &nes6502_tr_ops, &dc.base);
 }
