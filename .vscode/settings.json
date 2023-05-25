@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "cpu_ldst.h": "c",
+        "helper-gen.h": "c",
+        "tcg.h": "c",
+        "exec-all.h": "c",
+        "cpu.h": "c",
+        "*.inc": "c",
+        "*.idef": "c"
+    }
+}

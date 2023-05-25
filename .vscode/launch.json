@@ -1,0 +1,40 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",    //名称
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/root/Code/qemu/build/qemu-system-avr",    //当前目录下编译后的可执行文件
+            // "program": "/root/Code/qemu/build/qemu-system-rx",    //当前目录下编译后的可执行文件
+            "args": [
+                "-M", "mega2560",
+                // "-M", "gdbsim-r5f562n8",
+                "-nographic",
+                // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
+                "-bios","/root/Code/qemu-avr-tests/free-rtos/Demo/AVR_ATMega2560_GCC/demo.elf",
+                // "-serial","mon:stdio",
+                "-serial","tcp::5678,server=on,wait=off",
+                // "-bios", "/root/Code/u-boot.bin",
+                "-s","-S"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",    //表示当前目录
+            "environment": [],
+            "externalConsole": false, // 在vscode自带的终端中运行，不打开外部终端
+            "miDebuggerPath": "/usr/bin/gdb",
+            "MIMode": "gdb",    //用gdb来debug
+            // "setupCommands": [
+            //     {
+            //         "description": "Enable pretty-printing for gdb",
+            //         "text": "-enable-pretty-printing",
+            //         "ignoreFailures": true
+            //     }
+            // ],
+            // "preLaunchTask": "make"  //在执行debug hello world前，先执行build hello world这个task，看第4节
+        }
+    ]
+}
