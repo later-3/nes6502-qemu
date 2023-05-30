@@ -19,7 +19,7 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "hw/misc/unimp.h"
-#include "atmega.h"
+#include "nesmcu.h"
 
 enum AtmegaPeripheral {
     POWER0, POWER1,
@@ -62,8 +62,8 @@ struct AtmegaMcuClass {
 };
 typedef struct AtmegaMcuClass AtmegaMcuClass;
 
-DECLARE_CLASS_CHECKERS(AtmegaMcuClass, ATMEGA_MCU,
-                       TYPE_ATMEGA_MCU)
+DECLARE_CLASS_CHECKERS(AtmegaMcuClass, NES6502_MCU,
+                       TYPE_NES6502_MCU)
 
 static const peripheral_cfg dev168_328[PERIFMAX] = {
     [USART0]        = {  0xc0, POWER0, 1 },
@@ -186,43 +186,43 @@ static const uint8_t irq168_328[IRQ_COUNT] = {
     [USART3_TXC_IRQ]        = 57,
 };
 
-static void connect_peripheral_irq(const AtmegaMcuClass *k,
-                                   SysBusDevice *dev, int dev_irqn,
-                                   DeviceState *cpu,
-                                   unsigned peripheral_index)
-{
-    int cpu_irq = k->irq[peripheral_index];
+// static void connect_peripheral_irq(const AtmegaMcuClass *k,
+//                                    SysBusDevice *dev, int dev_irqn,
+//                                    DeviceState *cpu,
+//                                    unsigned peripheral_index)
+// {
+//     int cpu_irq = k->irq[peripheral_index];
 
-    if (!cpu_irq) {
-        return;
-    }
-    /* FIXME move that to avr_cpu_set_int() once 'sample' board is removed */
-    assert(cpu_irq >= 2);
-    cpu_irq -= 2;
+//     if (!cpu_irq) {
+//         return;
+//     }
+//     /* FIXME move that to avr_cpu_set_int() once 'sample' board is removed */
+//     assert(cpu_irq >= 2);
+//     cpu_irq -= 2;
 
-    sysbus_connect_irq(dev, dev_irqn, qdev_get_gpio_in(cpu, cpu_irq));
-}
+//     sysbus_connect_irq(dev, dev_irqn, qdev_get_gpio_in(cpu, cpu_irq));
+// }
 
-static void connect_power_reduction_gpio(AtmegaMcuState *s,
-                                         const AtmegaMcuClass *k,
-                                         DeviceState *cpu,
-                                         unsigned peripheral_index)
-{
-    unsigned power_index = k->dev[peripheral_index].power_index;
-    assert(k->dev[power_index].addr);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->pwr[power_index - POWER0]),
-                       k->dev[peripheral_index].power_bit,
-                       qdev_get_gpio_in(cpu, 0));
-}
+// static void connect_power_reduction_gpio(NesMcuState *s,
+//                                          const AtmegaMcuClass *k,
+//                                          DeviceState *cpu,
+//                                          unsigned peripheral_index)
+// {
+//     unsigned power_index = k->dev[peripheral_index].power_index;
+//     assert(k->dev[power_index].addr);
+//     sysbus_connect_irq(SYS_BUS_DEVICE(&s->pwr[power_index - POWER0]),
+//                        k->dev[peripheral_index].power_bit,
+//                        qdev_get_gpio_in(cpu, 0));
+// }
 
 static void atmega_realize(DeviceState *dev, Error **errp)
 {
-    AtmegaMcuState *s = ATMEGA_MCU(dev);
-    const AtmegaMcuClass *mc = ATMEGA_MCU_GET_CLASS(dev);
-    DeviceState *cpudev;
-    SysBusDevice *sbd;
-    char *devname;
-    size_t i;
+    NesMcuState *s = NES6502_MCU(dev);
+    const AtmegaMcuClass *mc = NES6502_MCU_GET_CLASS(dev);
+    // DeviceState *cpudev;
+    // SysBusDevice *sbd;
+    // char *devname;
+    // size_t i;
 
     assert(mc->io_size <= 0x200);
 
@@ -234,7 +234,7 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     /* CPU */
     object_initialize_child(OBJECT(dev), "cpu", &s->cpu, mc->cpu_type);
     qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
-    cpudev = DEVICE(&s->cpu);
+    // cpudev = DEVICE(&s->cpu);
 
     /* SRAM */
     memory_region_init_ram(&s->sram, OBJECT(dev), "sram", mc->sram_size,
@@ -254,105 +254,105 @@ static void atmega_realize(DeviceState *dev, Error **errp)
      * 0x20 - 0x5f: I/O memory
      * 0x60 - 0xff: Extended I/O
      */
-    s->io = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
-    qdev_prop_set_string(s->io, "name", "I/O");
-    qdev_prop_set_uint64(s->io, "size", mc->io_size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(s->io), &error_fatal);
-    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->io), 0, OFFSET_DATA, -1234);
+    // s->io = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+    // qdev_prop_set_string(s->io, "name", "I/O");
+    // qdev_prop_set_uint64(s->io, "size", mc->io_size);
+    // sysbus_realize_and_unref(SYS_BUS_DEVICE(s->io), &error_fatal);
+    // sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->io), 0, OFFSET_DATA, -1234);
 
     /* Power Reduction */
-    for (i = 0; i < POWER_MAX; i++) {
-        int idx = POWER(i);
-        if (!mc->dev[idx].addr) {
-            continue;
-        }
-        devname = g_strdup_printf("power%zu", i);
-        object_initialize_child(OBJECT(dev), devname, &s->pwr[i],
-                                TYPE_AVR_MASK);
-        sysbus_realize(SYS_BUS_DEVICE(&s->pwr[i]), &error_abort);
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->pwr[i]), 0,
-                        OFFSET_DATA + mc->dev[idx].addr);
-        g_free(devname);
-    }
+    // for (i = 0; i < POWER_MAX; i++) {
+    //     int idx = POWER(i);
+    //     if (!mc->dev[idx].addr) {
+    //         continue;
+    //     }
+    //     devname = g_strdup_printf("power%zu", i);
+    //     object_initialize_child(OBJECT(dev), devname, &s->pwr[i],
+    //                             TYPE_AVR_MASK);
+    //     sysbus_realize(SYS_BUS_DEVICE(&s->pwr[i]), &error_abort);
+    //     sysbus_mmio_map(SYS_BUS_DEVICE(&s->pwr[i]), 0,
+    //                     OFFSET_DATA + mc->dev[idx].addr);
+    //     g_free(devname);
+    // }
 
     /* GPIO */
-    for (i = 0; i < GPIO_MAX; i++) {
-        int idx = GPIO(i);
-        if (!mc->dev[idx].addr) {
-            continue;
-        }
-        devname = g_strdup_printf("atmega-gpio-%c", 'a' + (char)i);
-        create_unimplemented_device(devname,
-                                    OFFSET_DATA + mc->dev[idx].addr, 3);
-        g_free(devname);
-    }
+    // for (i = 0; i < GPIO_MAX; i++) {
+    //     int idx = GPIO(i);
+    //     if (!mc->dev[idx].addr) {
+    //         continue;
+    //     }
+    //     devname = g_strdup_printf("atmega-gpio-%c", 'a' + (char)i);
+    //     create_unimplemented_device(devname,
+    //                                 OFFSET_DATA + mc->dev[idx].addr, 3);
+    //     g_free(devname);
+    // }
 
     /* USART */
-    for (i = 0; i < USART_MAX; i++) {
-        int idx = USART(i);
-        if (!mc->dev[idx].addr) {
-            continue;
-        }
-        devname = g_strdup_printf("usart%zu", i);
-        object_initialize_child(OBJECT(dev), devname, &s->usart[i],
-                                TYPE_AVR_USART);
-        qdev_prop_set_chr(DEVICE(&s->usart[i]), "chardev", serial_hd(i));
-        sbd = SYS_BUS_DEVICE(&s->usart[i]);
-        sysbus_realize(sbd, &error_abort);
-        sysbus_mmio_map(sbd, 0, OFFSET_DATA + mc->dev[USART(i)].addr);
-        connect_peripheral_irq(mc, sbd, 0, cpudev, USART_RXC_IRQ(i));
-        connect_peripheral_irq(mc, sbd, 1, cpudev, USART_DRE_IRQ(i));
-        connect_peripheral_irq(mc, sbd, 2, cpudev, USART_TXC_IRQ(i));
-        connect_power_reduction_gpio(s, mc, DEVICE(&s->usart[i]), idx);
-        g_free(devname);
-    }
+    // for (i = 0; i < USART_MAX; i++) {
+    //     int idx = USART(i);
+    //     if (!mc->dev[idx].addr) {
+    //         continue;
+    //     }
+    //     devname = g_strdup_printf("usart%zu", i);
+    //     object_initialize_child(OBJECT(dev), devname, &s->usart[i],
+    //                             TYPE_AVR_USART);
+    //     qdev_prop_set_chr(DEVICE(&s->usart[i]), "chardev", serial_hd(i));
+    //     sbd = SYS_BUS_DEVICE(&s->usart[i]);
+    //     sysbus_realize(sbd, &error_abort);
+    //     sysbus_mmio_map(sbd, 0, OFFSET_DATA + mc->dev[USART(i)].addr);
+    //     connect_peripheral_irq(mc, sbd, 0, cpudev, USART_RXC_IRQ(i));
+    //     connect_peripheral_irq(mc, sbd, 1, cpudev, USART_DRE_IRQ(i));
+    //     connect_peripheral_irq(mc, sbd, 2, cpudev, USART_TXC_IRQ(i));
+    //     connect_power_reduction_gpio(s, mc, DEVICE(&s->usart[i]), idx);
+    //     g_free(devname);
+    // }
 
     /* Timer */
-    for (i = 0; i < TIMER_MAX; i++) {
-        int idx = TIMER(i);
-        if (!mc->dev[idx].addr) {
-            continue;
-        }
-        if (!mc->dev[idx].is_timer16) {
-            create_unimplemented_device("avr-timer8",
-                                        OFFSET_DATA + mc->dev[idx].addr, 5);
-            create_unimplemented_device("avr-timer8-intmask",
-                                        OFFSET_DATA
-                                        + mc->dev[idx].intmask_addr, 1);
-            create_unimplemented_device("avr-timer8-intflag",
-                                        OFFSET_DATA
-                                        + mc->dev[idx].intflag_addr, 1);
-            continue;
-        }
-        devname = g_strdup_printf("timer%zu", i);
-        object_initialize_child(OBJECT(dev), devname, &s->timer[i],
-                                TYPE_AVR_TIMER16);
-        object_property_set_uint(OBJECT(&s->timer[i]), "cpu-frequency-hz",
-                                 s->xtal_freq_hz, &error_abort);
-        sbd = SYS_BUS_DEVICE(&s->timer[i]);
-        sysbus_realize(sbd, &error_abort);
-        sysbus_mmio_map(sbd, 0, OFFSET_DATA + mc->dev[idx].addr);
-        sysbus_mmio_map(sbd, 1, OFFSET_DATA + mc->dev[idx].intmask_addr);
-        sysbus_mmio_map(sbd, 2, OFFSET_DATA + mc->dev[idx].intflag_addr);
-        connect_peripheral_irq(mc, sbd, 0, cpudev, TIMER_CAPT_IRQ(i));
-        connect_peripheral_irq(mc, sbd, 1, cpudev, TIMER_COMPA_IRQ(i));
-        connect_peripheral_irq(mc, sbd, 2, cpudev, TIMER_COMPB_IRQ(i));
-        connect_peripheral_irq(mc, sbd, 3, cpudev, TIMER_COMPC_IRQ(i));
-        connect_peripheral_irq(mc, sbd, 4, cpudev, TIMER_OVF_IRQ(i));
-        connect_power_reduction_gpio(s, mc, DEVICE(&s->timer[i]), idx);
-        g_free(devname);
-    }
+    // for (i = 0; i < TIMER_MAX; i++) {
+    //     int idx = TIMER(i);
+    //     if (!mc->dev[idx].addr) {
+    //         continue;
+    //     }
+    //     if (!mc->dev[idx].is_timer16) {
+    //         create_unimplemented_device("avr-timer8",
+    //                                     OFFSET_DATA + mc->dev[idx].addr, 5);
+    //         create_unimplemented_device("avr-timer8-intmask",
+    //                                     OFFSET_DATA
+    //                                     + mc->dev[idx].intmask_addr, 1);
+    //         create_unimplemented_device("avr-timer8-intflag",
+    //                                     OFFSET_DATA
+    //                                     + mc->dev[idx].intflag_addr, 1);
+    //         continue;
+    //     }
+    //     devname = g_strdup_printf("timer%zu", i);
+    //     object_initialize_child(OBJECT(dev), devname, &s->timer[i],
+    //                             TYPE_AVR_TIMER16);
+    //     object_property_set_uint(OBJECT(&s->timer[i]), "cpu-frequency-hz",
+    //                              s->xtal_freq_hz, &error_abort);
+    //     sbd = SYS_BUS_DEVICE(&s->timer[i]);
+    //     sysbus_realize(sbd, &error_abort);
+    //     sysbus_mmio_map(sbd, 0, OFFSET_DATA + mc->dev[idx].addr);
+    //     sysbus_mmio_map(sbd, 1, OFFSET_DATA + mc->dev[idx].intmask_addr);
+    //     sysbus_mmio_map(sbd, 2, OFFSET_DATA + mc->dev[idx].intflag_addr);
+    //     connect_peripheral_irq(mc, sbd, 0, cpudev, TIMER_CAPT_IRQ(i));
+    //     connect_peripheral_irq(mc, sbd, 1, cpudev, TIMER_COMPA_IRQ(i));
+    //     connect_peripheral_irq(mc, sbd, 2, cpudev, TIMER_COMPB_IRQ(i));
+    //     connect_peripheral_irq(mc, sbd, 3, cpudev, TIMER_COMPC_IRQ(i));
+    //     connect_peripheral_irq(mc, sbd, 4, cpudev, TIMER_OVF_IRQ(i));
+    //     connect_power_reduction_gpio(s, mc, DEVICE(&s->timer[i]), idx);
+    //     g_free(devname);
+    // }
 
-    create_unimplemented_device("avr-twi",          OFFSET_DATA + 0x0b8, 6);
-    create_unimplemented_device("avr-adc",          OFFSET_DATA + 0x078, 8);
-    create_unimplemented_device("avr-ext-mem-ctrl", OFFSET_DATA + 0x074, 2);
-    create_unimplemented_device("avr-watchdog",     OFFSET_DATA + 0x060, 1);
-    create_unimplemented_device("avr-spi",          OFFSET_DATA + 0x04c, 3);
-    create_unimplemented_device("avr-eeprom",       OFFSET_DATA + 0x03f, 3);
+    // create_unimplemented_device("avr-twi",          OFFSET_DATA + 0x0b8, 6);
+    // create_unimplemented_device("avr-adc",          OFFSET_DATA + 0x078, 8);
+    // create_unimplemented_device("avr-ext-mem-ctrl", OFFSET_DATA + 0x074, 2);
+    // create_unimplemented_device("avr-watchdog",     OFFSET_DATA + 0x060, 1);
+    // create_unimplemented_device("avr-spi",          OFFSET_DATA + 0x04c, 3);
+    // create_unimplemented_device("avr-eeprom",       OFFSET_DATA + 0x03f, 3);
 }
 
 static Property atmega_props[] = {
-    DEFINE_PROP_UINT64("xtal-frequency-hz", AtmegaMcuState,
+    DEFINE_PROP_UINT64("xtal-frequency-hz", NesMcuState,
                        xtal_freq_hz, 0),
     DEFINE_PROP_END_OF_LIST()
 };
@@ -369,7 +369,7 @@ static void atmega_class_init(ObjectClass *oc, void *data)
 
 static void atmega168_class_init(ObjectClass *oc, void *data)
 {
-    AtmegaMcuClass *amc = ATMEGA_MCU_CLASS(oc);
+    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
 
     amc->cpu_type = AVR_CPU_TYPE_NAME("avr5");
     amc->flash_size = 16 * KiB;
@@ -384,7 +384,7 @@ static void atmega168_class_init(ObjectClass *oc, void *data)
 
 static void atmega328_class_init(ObjectClass *oc, void *data)
 {
-    AtmegaMcuClass *amc = ATMEGA_MCU_CLASS(oc);
+    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
 
     amc->cpu_type = AVR_CPU_TYPE_NAME("avr5");
     amc->flash_size = 32 * KiB;
@@ -399,7 +399,7 @@ static void atmega328_class_init(ObjectClass *oc, void *data)
 
 static void atmega1280_class_init(ObjectClass *oc, void *data)
 {
-    AtmegaMcuClass *amc = ATMEGA_MCU_CLASS(oc);
+    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
 
     amc->cpu_type = AVR_CPU_TYPE_NAME("avr51");
     amc->flash_size = 128 * KiB;
@@ -414,7 +414,7 @@ static void atmega1280_class_init(ObjectClass *oc, void *data)
 
 static void atmega2560_class_init(ObjectClass *oc, void *data)
 {
-    AtmegaMcuClass *amc = ATMEGA_MCU_CLASS(oc);
+    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
 
     amc->cpu_type = AVR_CPU_TYPE_NAME("avr6");
     amc->flash_size = 256 * KiB;
@@ -430,24 +430,24 @@ static void atmega2560_class_init(ObjectClass *oc, void *data)
 static const TypeInfo atmega_mcu_types[] = {
     {
         .name           = TYPE_ATMEGA168_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
+        .parent         = TYPE_NES6502_MCU,
         .class_init     = atmega168_class_init,
     }, {
         .name           = TYPE_ATMEGA328_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
+        .parent         = TYPE_NES6502_MCU,
         .class_init     = atmega328_class_init,
     }, {
         .name           = TYPE_ATMEGA1280_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
+        .parent         = TYPE_NES6502_MCU,
         .class_init     = atmega1280_class_init,
     }, {
         .name           = TYPE_ATMEGA2560_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
+        .parent         = TYPE_NES6502_MCU,
         .class_init     = atmega2560_class_init,
     }, {
-        .name           = TYPE_ATMEGA_MCU,
+        .name           = TYPE_NES6502_MCU,
         .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(AtmegaMcuState),
+        .instance_size  = sizeof(NesMcuState),
         .class_size     = sizeof(AtmegaMcuClass),
         .class_init     = atmega_class_init,
         .abstract       = true,

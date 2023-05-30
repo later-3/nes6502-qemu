@@ -109,33 +109,37 @@ typedef enum AVRFeature {
 } AVRFeature;
 
 typedef struct CPUArchState {
-    //      "General" Registers (they are really 8 bit, but as TCG doesn't
-    // seem to have 8 bit registers, we are going to use more bits...
-    uint32_t    ac;
-    uint32_t    x;
-    uint32_t    y;
+    uint32_t pc_w; /* 0x003fffff up to 22 bits */
 
-    uint32_t    sp; // Stack pointer
-    uint32_t    sr;     // These are the flags: NV-BDIZC
-                        //  (note that only D,I are kept here; B is a ghost flag
-                        //   that is generated only by events that put the flags
-                        //   in the stack, and is only 1 for PHP)
+    uint32_t sregC; /* 0x00000001 1 bit */
+    uint32_t sregZ; /* 0x00000001 1 bit */
+    uint32_t sregN; /* 0x00000001 1 bit */
+    uint32_t sregV; /* 0x00000001 1 bit */
+    uint32_t sregS; /* 0x00000001 1 bit */
+    uint32_t sregH; /* 0x00000001 1 bit */
+    uint32_t sregT; /* 0x00000001 1 bit */
+    uint32_t sregI; /* 0x00000001 1 bit */
 
-    uint32_t    pc;
+    uint32_t rampD; /* 0x00ff0000 8 bits */
+    uint32_t rampX; /* 0x00ff0000 8 bits */
+    uint32_t rampY; /* 0x00ff0000 8 bits */
+    uint32_t rampZ; /* 0x00ff0000 8 bits */
+    uint32_t eind; /* 0x00ff0000 8 bits */
 
-    uint32_t    tmp;
-    uint32_t    last_res_CN;   // result of last operation, used to compute C and N flags
-    uint32_t    last_res_Z;    // result of last operation, used to compute Z flag
-    uint32_t    last_op1_V;    // last operands and result for V flag computation
-    uint32_t    last_op2_V;
-    uint32_t    last_res_V;
+    uint32_t r[NUMBER_OF_CPU_REGISTERS]; /* 8 bits each */
+    uint32_t sp; /* 16 bits */
 
-    int error_code;
-} CPU6502State;
+    uint32_t skip; /* if set skip instruction */
+
+    uint64_t intsrc; /* interrupt sources */
+    bool fullacc; /* CPU/MEM if true MEM only otherwise */
+
+    uint64_t features;
+} CPUAVRState;
 
 /**
  *  AVRCPU:
- *  @env: #CPU6502State
+ *  @env: #CPUAVRState
  *
  *  A AVR CPU.
  */
@@ -145,7 +149,7 @@ struct ArchCPU {
     /*< public >*/
 
     CPUNegativeOffsetState neg;
-    CPU6502State env;
+    CPUAVRState env;
 };
 
 extern const struct VMStateDescription vms_avr_cpu;
@@ -158,12 +162,12 @@ int avr_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int avr_print_insn(bfd_vma addr, disassemble_info *info);
 vaddr avr_cpu_gdb_adjust_breakpoint(CPUState *cpu, vaddr addr);
 
-static inline int avr_feature(CPU6502State *env, AVRFeature feature)
+static inline int avr_feature(CPUAVRState *env, AVRFeature feature)
 {
     return (env->features & (1U << feature)) != 0;
 }
 
-static inline void set_avr_feature(CPU6502State *env, int feature)
+static inline void set_avr_feature(CPUAVRState *env, int feature)
 {
     env->features |= (1U << feature);
 }
@@ -171,7 +175,7 @@ static inline void set_avr_feature(CPU6502State *env, int feature)
 #define cpu_list avr_cpu_list
 #define cpu_mmu_index avr_cpu_mmu_index
 
-static inline int avr_cpu_mmu_index(CPU6502State *env, bool ifetch)
+static inline int avr_cpu_mmu_index(CPUAVRState *env, bool ifetch)
 {
     return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
 }
@@ -186,7 +190,7 @@ enum {
     TB_FLAGS_SKIP = 2,
 };
 
-static inline void cpu_get_tb_cpu_state(CPU6502State *env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPUAVRState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *pflags)
 {
     uint32_t flags = 0;
@@ -204,12 +208,12 @@ static inline void cpu_get_tb_cpu_state(CPU6502State *env, target_ulong *pc,
     *pflags = flags;
 }
 
-static inline int cpu_interrupts_enabled(CPU6502State *env)
+static inline int cpu_interrupts_enabled(CPUAVRState *env)
 {
     return env->sregI != 0;
 }
 
-static inline uint8_t cpu_get_sreg(CPU6502State *env)
+static inline uint8_t cpu_get_sreg(CPUAVRState *env)
 {
     return (env->sregC) << 0
          | (env->sregZ) << 1
@@ -221,7 +225,7 @@ static inline uint8_t cpu_get_sreg(CPU6502State *env)
          | (env->sregI) << 7;
 }
 
-static inline void cpu_set_sreg(CPU6502State *env, uint8_t sreg)
+static inline void cpu_set_sreg(CPUAVRState *env, uint8_t sreg)
 {
     env->sregC = (sreg >> 0) & 0x01;
     env->sregZ = (sreg >> 1) & 0x01;

@@ -15,7 +15,7 @@
 #include "cpu.h"
 
 /**
- * avr_load_firmware:   load an image into a memory region
+ * nes6502_load_firmware:   load an image into a memory region
  *
  * @cpu:        Handle a AVR CPU object
  * @ms:         A MachineState
@@ -27,7 +27,7 @@
  *
  * Returns: true on success, false on error.
  */
-bool avr_load_firmware(AVRCPU *cpu, MachineState *ms,
+bool nes6502_load_firmware(AVRCPU *cpu, MachineState *ms,
                        MemoryRegion *mr, const char *firmware);
 
 #endif

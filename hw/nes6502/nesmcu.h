@@ -17,22 +17,22 @@
 #include "target/avr/cpu.h"
 #include "qom/object.h"
 
-#define TYPE_ATMEGA_MCU     "ATmega"
+#define TYPE_NES6502_MCU     "nesmcu"
 #define TYPE_ATMEGA168_MCU  "ATmega168"
 #define TYPE_ATMEGA328_MCU  "ATmega328"
 #define TYPE_ATMEGA1280_MCU "ATmega1280"
 #define TYPE_ATMEGA2560_MCU "ATmega2560"
 
-typedef struct AtmegaMcuState AtmegaMcuState;
-DECLARE_INSTANCE_CHECKER(AtmegaMcuState, ATMEGA_MCU,
-                         TYPE_ATMEGA_MCU)
+typedef struct NesMcuState NesMcuState;
+DECLARE_INSTANCE_CHECKER(NesMcuState, NES6502_MCU,
+                         TYPE_NES6502_MCU)
 
 #define POWER_MAX 2
 #define USART_MAX 4
 #define TIMER_MAX 6
 #define GPIO_MAX 12
 
-struct AtmegaMcuState {
+struct NesMcuState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/

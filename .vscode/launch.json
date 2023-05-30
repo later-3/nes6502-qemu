@@ -8,18 +8,18 @@
             "name": "(gdb) Launch",    //名称
             "type": "cppdbg",
             "request": "launch",
-            "program": "/root/Code/qemu/build/qemu-system-avr",    //当前目录下编译后的可执行文件
+            "program": "/root/Code/qemu/build/qemu-system-nes6502",    //当前目录下编译后的可执行文件
             // "program": "/root/Code/qemu/build/qemu-system-rx",    //当前目录下编译后的可执行文件
             "args": [
-                "-M", "mega2560",
+                "-M", "xiaobawang-v1",
                 // "-M", "gdbsim-r5f562n8",
                 "-nographic",
                 // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
-                "-bios","/root/Code/qemu-avr-tests/free-rtos/Demo/AVR_ATMega2560_GCC/demo.elf",
+                "-bios","/root/Code/super_mario_bros.nes",
                 // "-serial","mon:stdio",
-                "-serial","tcp::5678,server=on,wait=off",
+                // "-serial","tcp::5678,server=on,wait=off",
                 // "-bios", "/root/Code/u-boot.bin",
-                "-s","-S"
+                // "-s","-S"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",    //表示当前目录

@@ -1,9 +1,4 @@
-config NES6502_ATMEGA_MCU
-    bool
-    select NES6502_TIMER16
-    select NES6502_USART
-    select NES6502_POWER
+config NES6502_MCU
 
-config ARDUINO
-    select NES6502_ATMEGA_MCU
-    select UNIMP
+config XIAOBAWANG
+    select NES6502_MCU

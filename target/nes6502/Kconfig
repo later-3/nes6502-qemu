@@ -1,2 +1,2 @@
-config AVR
+config NES6502
     bool

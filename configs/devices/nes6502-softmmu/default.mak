@@ -2,4 +2,4 @@
 
 # Boards:
 #
-CONFIG_ARDUINO=y
+CONFIG_XIAOBAWANG=y
