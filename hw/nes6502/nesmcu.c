@@ -53,7 +53,7 @@ struct AtmegaMcuClass {
     const char *cpu_type;
     size_t flash_size;
     size_t eeprom_size;
-    size_t sram_size;
+    size_t work_am_size;
     size_t io_size;
     size_t gpio_count;
     size_t adc_count;
@@ -65,16 +65,7 @@ typedef struct AtmegaMcuClass AtmegaMcuClass;
 DECLARE_CLASS_CHECKERS(AtmegaMcuClass, NES6502_MCU,
                        TYPE_NES6502_MCU)
 
-static const peripheral_cfg dev168_328[PERIFMAX] = {
-    [USART0]        = {  0xc0, POWER0, 1 },
-    [TIMER2]        = {  0xb0, POWER0, 6, 0x70, 0x37, false },
-    [TIMER1]        = {  0x80, POWER0, 3, 0x6f, 0x36, true },
-    [POWER0]        = {  0x64 },
-    [TIMER0]        = {  0x44, POWER0, 5, 0x6e, 0x35, false },
-    [GPIOD]         = {  0x29 },
-    [GPIOC]         = {  0x26 },
-    [GPIOB]         = {  0x23 },
-}, dev1280_2560[PERIFMAX] = {
+static const peripheral_cfg dev1280_2560[PERIFMAX] = {
     [USART3]        = { 0x130, POWER1, 2 },
     [TIMER5]        = { 0x120, POWER1, 5, 0x73, 0x3a, true },
     [GPIOL]         = { 0x109 },
@@ -131,21 +122,7 @@ enum AtmegaIrq {
 #define TIMER_COMPC_IRQ(n)  (n * TIMER_IRQ_COUNT + TIMER0_COMPC_IRQ)
 #define TIMER_OVF_IRQ(n)    (n * TIMER_IRQ_COUNT + TIMER0_OVF_IRQ)
 
-static const uint8_t irq168_328[IRQ_COUNT] = {
-    [TIMER2_COMPA_IRQ]      = 8,
-    [TIMER2_COMPB_IRQ]      = 9,
-    [TIMER2_OVF_IRQ]        = 10,
-    [TIMER1_CAPT_IRQ]       = 11,
-    [TIMER1_COMPA_IRQ]      = 12,
-    [TIMER1_COMPB_IRQ]      = 13,
-    [TIMER1_OVF_IRQ]        = 14,
-    [TIMER0_COMPA_IRQ]      = 15,
-    [TIMER0_COMPB_IRQ]      = 16,
-    [TIMER0_OVF_IRQ]        = 17,
-    [USART0_RXC_IRQ]        = 19,
-    [USART0_DRE_IRQ]        = 20,
-    [USART0_TXC_IRQ]        = 21,
-}, irq1280_2560[IRQ_COUNT] = {
+static const uint8_t irq1280_2560[IRQ_COUNT] = {
     [TIMER2_COMPA_IRQ]      = 14,
     [TIMER2_COMPB_IRQ]      = 15,
     [TIMER2_OVF_IRQ]        = 16,
@@ -236,16 +213,15 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
     // cpudev = DEVICE(&s->cpu);
 
-    /* SRAM */
-    memory_region_init_ram(&s->sram, OBJECT(dev), "sram", mc->sram_size,
+    /* RAM */
+    memory_region_init_ram(&s->sram, OBJECT(dev), "ram", mc->work_am_size,
                            &error_abort);
-    memory_region_add_subregion(get_system_memory(),
-                                OFFSET_DATA + mc->io_size, &s->sram);
+    memory_region_add_subregion(get_system_memory(), RAM_ADDR, &s->sram);
 
     /* Flash */
     memory_region_init_rom(&s->flash, OBJECT(dev),
                            "flash", mc->flash_size, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), OFFSET_CODE, &s->flash);
+    memory_region_add_subregion(get_system_memory(), OFFSET_DATA, &s->flash);
 
     /*
      * I/O
@@ -367,51 +343,6 @@ static void atmega_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
-static void atmega168_class_init(ObjectClass *oc, void *data)
-{
-    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
-
-    amc->cpu_type = AVR_CPU_TYPE_NAME("avr5");
-    amc->flash_size = 16 * KiB;
-    amc->eeprom_size = 512;
-    amc->sram_size = 1 * KiB;
-    amc->io_size = 256;
-    amc->gpio_count = 23;
-    amc->adc_count = 6;
-    amc->irq = irq168_328;
-    amc->dev = dev168_328;
-};
-
-static void atmega328_class_init(ObjectClass *oc, void *data)
-{
-    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
-
-    amc->cpu_type = AVR_CPU_TYPE_NAME("avr5");
-    amc->flash_size = 32 * KiB;
-    amc->eeprom_size = 1 * KiB;
-    amc->sram_size = 2 * KiB;
-    amc->io_size = 256;
-    amc->gpio_count = 23;
-    amc->adc_count = 6;
-    amc->irq = irq168_328;
-    amc->dev = dev168_328;
-};
-
-static void atmega1280_class_init(ObjectClass *oc, void *data)
-{
-    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
-
-    amc->cpu_type = AVR_CPU_TYPE_NAME("avr51");
-    amc->flash_size = 128 * KiB;
-    amc->eeprom_size = 4 * KiB;
-    amc->sram_size = 8 * KiB;
-    amc->io_size = 512;
-    amc->gpio_count = 86;
-    amc->adc_count = 16;
-    amc->irq = irq1280_2560;
-    amc->dev = dev1280_2560;
-};
-
 static void atmega2560_class_init(ObjectClass *oc, void *data)
 {
     AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
@@ -419,7 +350,7 @@ static void atmega2560_class_init(ObjectClass *oc, void *data)
     amc->cpu_type = AVR_CPU_TYPE_NAME("avr6");
     amc->flash_size = 256 * KiB;
     amc->eeprom_size = 4 * KiB;
-    amc->sram_size = 8 * KiB;
+    amc->work_am_size = 64 * KiB;
     amc->io_size = 512;
     amc->gpio_count = 54;
     amc->adc_count = 16;
@@ -429,18 +360,6 @@ static void atmega2560_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo atmega_mcu_types[] = {
     {
-        .name           = TYPE_ATMEGA168_MCU,
-        .parent         = TYPE_NES6502_MCU,
-        .class_init     = atmega168_class_init,
-    }, {
-        .name           = TYPE_ATMEGA328_MCU,
-        .parent         = TYPE_NES6502_MCU,
-        .class_init     = atmega328_class_init,
-    }, {
-        .name           = TYPE_ATMEGA1280_MCU,
-        .parent         = TYPE_NES6502_MCU,
-        .class_init     = atmega1280_class_init,
-    }, {
         .name           = TYPE_ATMEGA2560_MCU,
         .parent         = TYPE_NES6502_MCU,
         .class_init     = atmega2560_class_init,

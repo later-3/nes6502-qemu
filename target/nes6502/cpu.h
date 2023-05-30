@@ -60,8 +60,12 @@
  *
  * It's also useful to know where some things are, like the IO registers.
  */
-/* Flash program memory */
-#define OFFSET_CODE 0x00000000
+/* program memory */
+#define RAM_ADDR 0x0
+#define FIRST_CODE_OFFSET 0x8000
+#define SECOND_CODE_OFFSET 0xC000
+#define PRG_BLOGK_SIZE 0x4000
+
 /* CPU registers, IO registers, and SRAM */
 #define OFFSET_DATA 0x00800000
 /* CPU registers specifically, these are mapped at the start of data */

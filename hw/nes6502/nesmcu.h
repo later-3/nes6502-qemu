@@ -14,7 +14,7 @@
 #include "hw/char/avr_usart.h"
 #include "hw/timer/avr_timer16.h"
 #include "hw/misc/avr_power.h"
-#include "target/avr/cpu.h"
+#include "target/nes6502/cpu.h"
 #include "qom/object.h"
 
 #define TYPE_NES6502_MCU     "nesmcu"

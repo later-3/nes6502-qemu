@@ -6,6 +6,7 @@
         "exec-all.h": "c",
         "cpu.h": "c",
         "*.inc": "c",
-        "*.idef": "c"
+        "*.idef": "c",
+        "nesmcu.h": "c"
     }
 }

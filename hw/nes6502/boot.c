@@ -14,7 +14,13 @@
 #include "elf.h"
 #include "boot.h"
 #include "qemu/error-report.h"
+#include "nesmcu.h"
 
+/* program memory */
+#define RAM_ADDR 0x0
+#define FIRST_CODE_OFFSET 0x8000
+#define SECOND_CODE_OFFSET 0xC000
+#define PRG_BLOGK_SIZE 0x4000
 // static const char *avr_elf_e_flags_to_cpu_type(uint32_t flags)
 // {
 //     switch (flags & EF_AVR_MACH) {
@@ -79,14 +85,44 @@ static void romread(char *rom, void *buf, int size)
     off += size;
 }
 
+byte mmc_id;
 
 static int fce_load_rom(char *rom)
 {
+    // NesMcuState *s = NES6502_MCU(ms);
     romread(rom, &fce_rom_header, sizeof(fce_rom_header));
 
     if (memcmp(fce_rom_header.signature, "NES\x1A", 4)) {
         return -1;
     }
+    mmc_id = ((fce_rom_header.rom_type & 0xF0) >> 4);
+
+    int prg_size = fce_rom_header.prg_block_count * 0x4000;
+    static byte buf[1048576];
+    romread(rom, buf, prg_size);
+
+    if (mmc_id == 0 || mmc_id == 3) {
+        address_space_write(&address_space_memory, FIRST_CODE_OFFSET, MEMTXATTRS_UNSPECIFIED, buf, PRG_BLOGK_SIZE);
+        // if there is only one PRG block, we must repeat it twice
+        if (fce_rom_header.prg_block_count == 1) {
+            address_space_write(&address_space_memory, SECOND_CODE_OFFSET, MEMTXATTRS_UNSPECIFIED, buf, PRG_BLOGK_SIZE);
+        }
+    }
+    else {
+        return -1;
+    }
+
+    // Copying CHR pages into MMC and PPU
+    // int i;
+    // for (i = 0; i < fce_rom_header.chr_block_count; i++) {
+    //     romread(rom, buf, 0x2000);
+    //     mmc_append_chr_rom_page(buf);
+
+    //     if (i == 0) {
+    //         ppu_copy(0x0000, buf, 0x2000);
+    //     }
+    // }
+
     return 0;
 }
 
