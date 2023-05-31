@@ -14,6 +14,7 @@
 #include "elf.h"
 #include "boot.h"
 #include "qemu/error-report.h"
+#include "sysemu/reset.h"
 
 /* program memory */
 #define RAM_ADDR 0x0
@@ -129,6 +130,13 @@ static int fce_load_rom(char *rom, NesMcuState *s)
     return 0;
 }
 
+static void do_cpu_reset(void *opaque)
+{
+    AVRCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    cpu_set_pc(cs, 0x8000);
+}
+
 bool nes6502_load_firmware(AVRCPU *cpu, NesMcuState *s,
                        MemoryRegion *program_mr, const char *firmware)
 {
@@ -159,6 +167,8 @@ bool nes6502_load_firmware(AVRCPU *cpu, NesMcuState *s,
         fprintf(stderr, "Invalid or unsupported rom.\n");
         exit(1);
     }
+    qemu_register_reset(do_cpu_reset, cpu);
+
     // signal(SIGINT, do_exit);
     return true;
 }

@@ -29,7 +29,7 @@ static void avr_cpu_set_pc(CPUState *cs, vaddr value)
 {
     AVRCPU *cpu = AVR_CPU(cs);
 
-    cpu->env.pc_w = value / 2; /* internally PC points to words */
+    cpu->env.pc_w = value; /* internally PC points to words */
 }
 
 static vaddr avr_cpu_get_pc(CPUState *cs)

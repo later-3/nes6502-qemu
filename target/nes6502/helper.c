@@ -114,7 +114,8 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
     if (mmu_idx == MMU_CODE_IDX) {
         /* Access to code in flash. */
-        paddr = RAM_ADDR + address;
+        paddr = FIRST_CODE_OFFSET + address;
+        paddr = FIRST_CODE_OFFSET;
         prot = PAGE_READ | PAGE_EXEC;
         if (paddr >= OFFSET_DATA) {
             /*
