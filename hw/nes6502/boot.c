@@ -14,7 +14,6 @@
 #include "elf.h"
 #include "boot.h"
 #include "qemu/error-report.h"
-#include "nesmcu.h"
 
 /* program memory */
 #define RAM_ADDR 0x0
@@ -87,9 +86,13 @@ static void romread(char *rom, void *buf, int size)
 
 byte mmc_id;
 
-static int fce_load_rom(char *rom)
+static void mmc_append_chr_rom_page(byte *source, int size, int *page_number)
 {
-    // NesMcuState *s = NES6502_MCU(ms);
+    address_space_write(&address_space_memory, size, MEMTXATTRS_UNSPECIFIED, source, 0x2000);
+}
+
+static int fce_load_rom(char *rom, NesMcuState *s)
+{
     romread(rom, &fce_rom_header, sizeof(fce_rom_header));
 
     if (memcmp(fce_rom_header.signature, "NES\x1A", 4)) {
@@ -113,20 +116,20 @@ static int fce_load_rom(char *rom)
     }
 
     // Copying CHR pages into MMC and PPU
-    // int i;
-    // for (i = 0; i < fce_rom_header.chr_block_count; i++) {
-    //     romread(rom, buf, 0x2000);
-    //     mmc_append_chr_rom_page(buf);
+    int i;
+    for (i = 0; i < fce_rom_header.chr_block_count; i++) {
+        romread(rom, buf, 0x2000);
+        mmc_append_chr_rom_page(buf, WORK_RAM_SIZE, &s->mmc_chr_pages_number);
 
-    //     if (i == 0) {
-    //         ppu_copy(0x0000, buf, 0x2000);
-    //     }
-    // }
+        // if (i == 0) {
+        //     ppu_copy(0x0000, buf, 0x2000);
+        // }
+    }
 
     return 0;
 }
 
-bool nes6502_load_firmware(AVRCPU *cpu, MachineState *ms,
+bool nes6502_load_firmware(AVRCPU *cpu, NesMcuState *s,
                        MemoryRegion *program_mr, const char *firmware)
 {
     g_autofree char *filename = NULL;
@@ -151,7 +154,7 @@ bool nes6502_load_firmware(AVRCPU *cpu, MachineState *ms,
         fprintf(stderr, "Read rom file failed.\n");
         exit(1);
     }
-    if (fce_load_rom(rom) != 0)
+    if (fce_load_rom(rom, s) != 0)
     {
         fprintf(stderr, "Invalid or unsupported rom.\n");
         exit(1);

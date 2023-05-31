@@ -10,7 +10,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "qemu/units.h"
 #include "qapi/error.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
@@ -45,7 +44,7 @@ typedef struct {
     bool is_timer16;
 } peripheral_cfg;
 
-struct AtmegaMcuClass {
+struct NESPpuMcuClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
@@ -60,9 +59,9 @@ struct AtmegaMcuClass {
     const uint8_t *irq;
     const peripheral_cfg *dev;
 };
-typedef struct AtmegaMcuClass AtmegaMcuClass;
+typedef struct NESPpuMcuClass NESPpuMcuClass;
 
-DECLARE_CLASS_CHECKERS(AtmegaMcuClass, NES6502_MCU,
+DECLARE_CLASS_CHECKERS(NESPpuMcuClass, NES6502_MCU,
                        TYPE_NES6502_MCU)
 
 static const peripheral_cfg dev1280_2560[PERIFMAX] = {
@@ -163,7 +162,7 @@ static const uint8_t irq1280_2560[IRQ_COUNT] = {
     [USART3_TXC_IRQ]        = 57,
 };
 
-// static void connect_peripheral_irq(const AtmegaMcuClass *k,
+// static void connect_peripheral_irq(const NESPpuMcuClass *k,
 //                                    SysBusDevice *dev, int dev_irqn,
 //                                    DeviceState *cpu,
 //                                    unsigned peripheral_index)
@@ -181,7 +180,7 @@ static const uint8_t irq1280_2560[IRQ_COUNT] = {
 // }
 
 // static void connect_power_reduction_gpio(NesMcuState *s,
-//                                          const AtmegaMcuClass *k,
+//                                          const NESPpuMcuClass *k,
 //                                          DeviceState *cpu,
 //                                          unsigned peripheral_index)
 // {
@@ -191,11 +190,11 @@ static const uint8_t irq1280_2560[IRQ_COUNT] = {
 //                        k->dev[peripheral_index].power_bit,
 //                        qdev_get_gpio_in(cpu, 0));
 // }
-
+#define MMC_MAX_PAGE_COUNT 256
 static void atmega_realize(DeviceState *dev, Error **errp)
 {
     NesMcuState *s = NES6502_MCU(dev);
-    const AtmegaMcuClass *mc = NES6502_MCU_GET_CLASS(dev);
+    const NESPpuMcuClass *mc = NES6502_MCU_GET_CLASS(dev);
     // DeviceState *cpudev;
     // SysBusDevice *sbd;
     // char *devname;
@@ -213,10 +212,15 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
     // cpudev = DEVICE(&s->cpu);
 
-    /* RAM */
-    memory_region_init_ram(&s->sram, OBJECT(dev), "ram", mc->work_am_size,
-                           &error_abort);
-    memory_region_add_subregion(get_system_memory(), RAM_ADDR, &s->sram);
+    /* WORK RAM */
+    memory_region_init_ram(&s->work_ram, OBJECT(dev), "work_ram", mc->work_am_size, &error_abort);
+    memory_region_add_subregion(get_system_memory(), RAM_ADDR, &s->work_ram);
+
+    /* CHR RAM*/
+    memory_region_init_ram(&s->chr_ram, OBJECT(dev), "chr_ram", MMC_MAX_PAGE_COUNT * 0x2000, &error_abort);
+    memory_region_add_subregion(get_system_memory(), RAM_ADDR + mc->work_am_size, &s->chr_ram);
+
+    /* PPU RAM*/
 
     /* Flash */
     memory_region_init_rom(&s->flash, OBJECT(dev),
@@ -345,7 +349,7 @@ static void atmega_class_init(ObjectClass *oc, void *data)
 
 static void atmega2560_class_init(ObjectClass *oc, void *data)
 {
-    AtmegaMcuClass *amc = NES6502_MCU_CLASS(oc);
+    NESPpuMcuClass *amc = NES6502_MCU_CLASS(oc);
 
     amc->cpu_type = AVR_CPU_TYPE_NAME("avr6");
     amc->flash_size = 256 * KiB;
@@ -367,7 +371,7 @@ static const TypeInfo atmega_mcu_types[] = {
         .name           = TYPE_NES6502_MCU,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(NesMcuState),
-        .class_size     = sizeof(AtmegaMcuClass),
+        .class_size     = sizeof(NESPpuMcuClass),
         .class_init     = atmega_class_init,
         .abstract       = true,
     }

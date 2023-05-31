@@ -16,6 +16,7 @@
 #include "hw/misc/avr_power.h"
 #include "target/nes6502/cpu.h"
 #include "qom/object.h"
+#include "qemu/units.h"
 
 #define TYPE_NES6502_MCU     "nesmcu"
 #define TYPE_ATMEGA168_MCU  "ATmega168"
@@ -32,6 +33,8 @@ DECLARE_INSTANCE_CHECKER(NesMcuState, NES6502_MCU,
 #define TIMER_MAX 6
 #define GPIO_MAX 12
 
+#define WORK_RAM_SIZE 64 * KiB
+
 struct NesMcuState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -40,12 +43,16 @@ struct NesMcuState {
     AVRCPU cpu;
     MemoryRegion flash;
     MemoryRegion eeprom;
-    MemoryRegion sram;
+    MemoryRegion work_ram;
+    MemoryRegion chr_ram;
     DeviceState *io;
     AVRMaskState pwr[POWER_MAX];
     AVRUsartState usart[USART_MAX];
     AVRTimer16State timer[TIMER_MAX];
     uint64_t xtal_freq_hz;
+
+    int mmc_prg_pages_number;
+    int mmc_chr_pages_number;
 };
 
 #endif /* HW_AVR_ATMEGA_H */

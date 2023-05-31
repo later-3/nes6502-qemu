@@ -7,6 +7,7 @@
         "cpu.h": "c",
         "*.inc": "c",
         "*.idef": "c",
-        "nesmcu.h": "c"
+        "nesmcu.h": "c",
+        "unimp.h": "c"
     }
 }

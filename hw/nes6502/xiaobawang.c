@@ -135,8 +135,7 @@ void xiaobawang_init(MachineState *machine)
     sysbus_realize(SYS_BUS_DEVICE(&ams->mcu), &error_abort);
 
     if (machine->firmware) {
-        if (!nes6502_load_firmware(&ams->mcu.cpu, machine,
-                               &ams->mcu.flash, machine->firmware)) {
+        if (!nes6502_load_firmware(&ams->mcu.cpu, &ams->mcu, &ams->mcu.flash, machine->firmware)) {
             exit(1);
         }
     }

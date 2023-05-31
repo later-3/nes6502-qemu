@@ -13,6 +13,7 @@
 
 #include "hw/boards.h"
 #include "cpu.h"
+#include "nesmcu.h"
 
 /**
  * nes6502_load_firmware:   load an image into a memory region
@@ -27,7 +28,7 @@
  *
  * Returns: true on success, false on error.
  */
-bool nes6502_load_firmware(AVRCPU *cpu, MachineState *ms,
+bool nes6502_load_firmware(AVRCPU *cpu, NesMcuState *s,
                        MemoryRegion *mr, const char *firmware);
 
 #endif
