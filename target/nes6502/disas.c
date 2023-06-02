@@ -53,12 +53,20 @@ static uint16_t next_word(DisasContext *ctx)
     return ctx->next_word;
 }
 
+/* decoder helper */
+static uint16_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
+                           int i, int n)
+{
+    return insn;
+}
+
 static int append_16(DisasContext *ctx, int x)
 {
     return x << 16 | next_word(ctx);
 }
 
 /* Include the auto-generated decoder.  */
+static uint16_t decode_insn_load(DisasContext *ctx);
 static bool decode_insn(DisasContext *ctx, uint16_t insn);
 #include "decode-insn.c.inc"
 
@@ -81,6 +89,7 @@ int avr_print_insn(bfd_vma addr, disassemble_info *info)
         info->memory_error_func(status, addr, info);
         return -1;
     }
+    insn = decode_insn_load(&ctx);
     insn = bfd_getl16(buffer);
     ctx.next_word = bfd_getl16(buffer + 2);
     ctx.next_word_used = false;
@@ -139,7 +148,7 @@ INSN(SBC,    "r%d, r%d", a->rd, a->rr)
 INSN(SBCI,   "r%d, %d", a->rd, a->imm)
 INSN(SBIW,   "r%d:r%d, %d", a->rd + 1, a->rd, a->imm)
 INSN(AND,    "r%d, r%d", a->rd, a->rr)
-INSN(ANDI,   "r%d, %d", a->rd, a->imm)
+// INSN(ANDI,   "r%d, %d", a->rd, a->imm)
 INSN(OR,     "r%d, r%d", a->rd, a->rr)
 INSN(ORI,    "r%d, %d", a->rd, a->imm)
 INSN(EOR,    "r%d, r%d", a->rd, a->rr)
@@ -162,7 +171,7 @@ INSN(RJMP,   ".%+d", a->imm * 2)
 INSN(IJMP,   "")
 INSN(EIJMP,  "")
 INSN(JMP,    "0x%x", a->imm * 2)
-INSN(RCALL,  ".%+d", a->imm * 2)
+// INSN(RCALL,  ".%+d", a->imm * 2)
 INSN(ICALL,  "")
 INSN(EICALL, "")
 INSN(CALL,   "0x%x", a->imm * 2)
@@ -193,8 +202,8 @@ INSN(LDY2,   "r%d, Y+", a->rd)
 INSN(LDY3,   "r%d, -Y", a->rd)
 INSN(LDZ2,   "r%d, Z+", a->rd)
 INSN(LDZ3,   "r%d, -Z", a->rd)
-INSN(LDDY,   "r%d, Y+%d", a->rd, a->imm)
-INSN(LDDZ,   "r%d, Z+%d", a->rd, a->imm)
+// INSN(LDDY,   "r%d, Y+%d", a->rd, a->imm)
+// INSN(LDDZ,   "r%d, Z+%d", a->rd, a->imm)
 INSN(STS,    "%d, r%d", a->imm, a->rd)
 INSN(STX1,   "X, r%d", a->rr)
 INSN(STX2,   "X+, r%d", a->rr)
@@ -221,6 +230,7 @@ INSN(XCH,    "Z, r%d", a->rd)
 INSN(LAC,    "Z, r%d", a->rd)
 INSN(LAS,    "Z, r%d", a->rd)
 INSN(LAT,    "Z, r%d", a->rd)
+INSN(LDA,    "%d", a->imm)
 
 /*
  * Bit and Bit-test Instructions
@@ -243,3 +253,5 @@ INSN(BREAK,  "")
 INSN(NOP,    "")
 INSN(SLEEP,  "")
 INSN(WDR,    "")
+INSN(SEI,    "")
+INSN(CLD,    "")

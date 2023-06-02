@@ -59,7 +59,7 @@ SBC             0000 10 . ..... ....        @op_rd_rr
 SBCI            0100 .... .... ....         @op_rd_imm8
 SBIW            1001 0111 .. .. ....        @op_rd_imm6
 AND             0010 00 . ..... ....        @op_rd_rr
-ANDI            0111 .... .... ....         @op_rd_imm8
+#ANDI            0111 .... .... ....         @op_rd_imm8
 OR              0010 10 . ..... ....        @op_rd_rr
 ORI             0110 .... .... ....         @op_rd_imm8
 EOR             0010 01 . ..... ....        @op_rd_rr
@@ -91,7 +91,7 @@ RJMP            1100 imm:s12
 IJMP            1001 0100 0000 1001
 EIJMP           1001 0100 0001 1001
 JMP             1001 010 ..... 110 .        imm=%imm_call
-RCALL           1101 imm:s12
+#RCALL           1101 imm:s12
 ICALL           1001 0101 0000 1001
 EICALL          1001 0101 0001 1001
 CALL            1001 010 ..... 111 .        imm=%imm_call
@@ -135,8 +135,8 @@ LDY2            1001 000 rd:5 1001
 LDY3            1001 000 rd:5 1010
 LDZ2            1001 000 rd:5 0001
 LDZ3            1001 000 rd:5 0010
-LDDY            10 . 0 .. 0 ..... 1 ...     @ldst_d
-LDDZ            10 . 0 .. 0 ..... 0 ...     @ldst_d
+#LDDY            10 . 0 .. 0 ..... 1 ...     @ldst_d
+#LDDZ            10 . 0 .. 0 ..... 0 ...     @ldst_d
 STS             1001 001 ..... 0000         @ldst_s
 STX1            1001 001 rr:5 1100
 STX2            1001 001 rr:5 1101
@@ -163,6 +163,7 @@ XCH             1001 001 rd:5 0100
 LAC             1001 001 rd:5 0110
 LAS             1001 001 rd:5 0101
 LAT             1001 001 rd:5 0111
+LDA             1010 1001 imm:8
 
 #
 # Bit and Bit-test Instructions
@@ -185,3 +186,5 @@ BREAK           1001 0101 1001 1000
 NOP             0000 0000 0000 0000
 SLEEP           1001 0101 1000 1000
 WDR             1001 0101 1010 1000
+SEI             0111 1000
+CLD             1101 1000

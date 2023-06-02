@@ -42,6 +42,8 @@
 
 static TCGv cpu_pc;
 
+static TCGv cpu_A;
+
 static TCGv cpu_Cf;
 static TCGv cpu_Zf;
 static TCGv cpu_Nf;
@@ -140,6 +142,8 @@ void avr_cpu_tcg_init(void)
     cpu_sp = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sp), "sp");
     cpu_skip = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(skip), "skip");
 
+    cpu_A = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_A), "A");
+
     for (i = 0; i < NUMBER_OF_CPU_REGISTERS; i++) {
         cpu_r[i] = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(r[i]),
                                           reg_names[i]);
@@ -187,6 +191,18 @@ static bool avr_have_feature(DisasContext *ctx, int feature)
     return true;
 }
 
+/* decoder helper */
+static uint16_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
+                           int i, int n)
+{
+    while (++i <= n) {
+        uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
+        insn |= b << (16 - i * 8);
+    }
+    return insn;
+}
+
+static uint16_t decode_insn_load(DisasContext *ctx);
 static bool decode_insn(DisasContext *ctx, uint16_t insn);
 #include "decode-insn.c.inc"
 
@@ -541,19 +557,19 @@ static bool trans_AND(DisasContext *ctx, arg_AND *a)
  *  Performs the logical AND between the contents of register Rd and a constant
  *  and places the result in the destination register Rd.
  */
-static bool trans_ANDI(DisasContext *ctx, arg_ANDI *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    int Imm = (a->imm);
+// static bool trans_ANDI(DisasContext *ctx, arg_ANDI *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     int Imm = (a->imm);
 
-    tcg_gen_andi_tl(Rd, Rd, Imm); /* Rd = Rd & Imm */
+//     tcg_gen_andi_tl(Rd, Rd, Imm); /* Rd = Rd & Imm */
 
-    /* update status register */
-    tcg_gen_movi_tl(cpu_Vf, 0x00); /* Vf = 0 */
-    gen_ZNSf(Rd);
+//     /* update status register */
+//     tcg_gen_movi_tl(cpu_Vf, 0x00); /* Vf = 0 */
+//     gen_ZNSf(Rd);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  Performs the logical OR between the contents of register Rd and register
@@ -1063,14 +1079,20 @@ static bool trans_JMP(DisasContext *ctx, arg_JMP *a)
  *  address location. The Stack Pointer uses a post-decrement scheme during
  *  RCALL.
  */
-static bool trans_RCALL(DisasContext *ctx, arg_RCALL *a)
+// static bool trans_RCALL(DisasContext *ctx, arg_RCALL *a)
+// {
+//     int ret = ctx->npc;
+//     int dst = ctx->npc + a->imm;
+
+//     gen_push_ret(ctx, ret);
+//     gen_goto_tb(ctx, 0, dst);
+
+//     return true;
+// }
+
+static bool trans_LDA(DisasContext *ctx, arg_LDA *a)
 {
-    int ret = ctx->npc;
-    int dst = ctx->npc + a->imm;
-
-    gen_push_ret(ctx, ret);
-    gen_goto_tb(ctx, 0, dst);
-
+    tcg_gen_movi_i32(cpu_A, a->imm);
     return true;
 }
 
@@ -1689,15 +1711,15 @@ static bool trans_LDY3(DisasContext *ctx, arg_LDY3 *a)
     return true;
 }
 
-static bool trans_LDDY(DisasContext *ctx, arg_LDDY *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv addr = gen_get_yaddr();
+// static bool trans_LDDY(DisasContext *ctx, arg_LDDY *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv addr = gen_get_yaddr();
 
-    tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
-    gen_data_load(ctx, Rd, addr);
-    return true;
-}
+//     tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
+//     gen_data_load(ctx, Rd, addr);
+//     return true;
+// }
 
 /*
  *  Loads one byte indirect with or without displacement from the data space
@@ -1752,15 +1774,15 @@ static bool trans_LDZ3(DisasContext *ctx, arg_LDZ3 *a)
     return true;
 }
 
-static bool trans_LDDZ(DisasContext *ctx, arg_LDDZ *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv addr = gen_get_zaddr();
+// static bool trans_LDDZ(DisasContext *ctx, arg_LDDZ *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv addr = gen_get_zaddr();
 
-    tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
-    gen_data_load(ctx, Rd, addr);
-    return true;
-}
+//     tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
+//     gen_data_load(ctx, Rd, addr);
+//     return true;
+// }
 
 /*
  *  Stores one byte from a Register to the data space. For parts with SRAM,
@@ -2567,6 +2589,22 @@ static bool trans_NOP(DisasContext *ctx, arg_NOP *a)
     return true;
 }
 
+static bool trans_SEI(DisasContext *ctx, arg_SEI *a)
+{
+
+    /* NOP */
+
+    return true;
+}
+
+static bool trans_CLD(DisasContext *ctx, arg_CLD *a)
+{
+
+    /* NOP */
+
+    return true;
+}
+
 /*
  *  This instruction sets the circuit in sleep mode defined by the MCU
  *  Control Register.
@@ -2601,8 +2639,9 @@ static bool trans_WDR(DisasContext *ctx, arg_WDR *a)
  */
 static void translate(DisasContext *ctx)
 {
-    uint32_t opcode = next_word(ctx);
-
+    // uint32_t opcode = next_word(ctx);
+    uint16_t opcode;
+    opcode = decode_insn_load(ctx);
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);
         ctx->base.is_jmp = DISAS_NORETURN;

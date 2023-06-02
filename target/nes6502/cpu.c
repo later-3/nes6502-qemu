@@ -99,6 +99,8 @@ static void avr_cpu_reset_hold(Object *obj)
     env->skip = 0;
 
     memset(env->r, 0, sizeof(env->r));
+
+    env->reg_A = 0;
 }
 
 static void avr_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
