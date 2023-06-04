@@ -243,6 +243,7 @@ struct CPUArchState {
     uint32_t bvalue;   /* TCG temporary, only valid during a TB */
     uint32_t btarget;  /* Full resolved branch destination */
 
+    uint32_t addr;
     uint32_t imm;
     uint32_t regs[32];
     uint32_t pc;

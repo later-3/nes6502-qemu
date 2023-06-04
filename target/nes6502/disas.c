@@ -27,31 +27,31 @@ typedef struct {
     bool next_word_used;
 } DisasContext;
 
-static int to_regs_16_31_by_one(DisasContext *ctx, int indx)
-{
-    return 16 + (indx % 16);
-}
+// static int to_regs_16_31_by_one(DisasContext *ctx, int indx)
+// {
+//     return 16 + (indx % 16);
+// }
 
-static int to_regs_16_23_by_one(DisasContext *ctx, int indx)
-{
-    return 16 + (indx % 8);
-}
+// static int to_regs_16_23_by_one(DisasContext *ctx, int indx)
+// {
+//     return 16 + (indx % 8);
+// }
 
-static int to_regs_24_30_by_two(DisasContext *ctx, int indx)
-{
-    return 24 + (indx % 4) * 2;
-}
+// static int to_regs_24_30_by_two(DisasContext *ctx, int indx)
+// {
+//     return 24 + (indx % 4) * 2;
+// }
 
-static int to_regs_00_30_by_two(DisasContext *ctx, int indx)
-{
-    return (indx % 16) * 2;
-}
+// static int to_regs_00_30_by_two(DisasContext *ctx, int indx)
+// {
+//     return (indx % 16) * 2;
+// }
 
-static uint16_t next_word(DisasContext *ctx)
-{
-    ctx->next_word_used = true;
-    return ctx->next_word;
-}
+// static uint16_t next_word(DisasContext *ctx)
+// {
+//     ctx->next_word_used = true;
+//     return ctx->next_word;
+// }
 
 /* decoder helper */
 static uint16_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
@@ -60,14 +60,14 @@ static uint16_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
     return insn;
 }
 
-static int append_16(DisasContext *ctx, int x)
-{
-    return x << 16 | next_word(ctx);
-}
+// static int append_16(DisasContext *ctx, int x)
+// {
+//     return x << 16 | next_word(ctx);
+// }
 
 /* Include the auto-generated decoder.  */
-static uint16_t decode_insn_load(DisasContext *ctx);
-static bool decode_insn(DisasContext *ctx, uint16_t insn);
+static uint32_t decode_insn_load(DisasContext *ctx);
+static bool decode_insn(DisasContext *ctx, uint32_t insn);
 #include "decode-insn.c.inc"
 
 #define output(mnemonic, format, ...) \
@@ -120,13 +120,13 @@ static bool trans_##opcode(DisasContext *pctx, arg_##opcode * a)        \
  *   C       Z       N       V       S       H       T       I
  *   0       1       2       3       4       5       6       7
  */
-static const char brbc[][5] = {
-    "BRCC", "BRNE", "BRPL", "BRVC", "BRGE", "BRHC", "BRTC", "BRID"
-};
+// static const char brbc[][5] = {
+//     "BRCC", "BRNE", "BRPL", "BRVC", "BRGE", "BRHC", "BRTC", "BRID"
+// };
 
-static const char brbs[][5] = {
-    "BRCS", "BREQ", "BRMI", "BRVS", "BRLT", "BRHS", "BRTS", "BRIE"
-};
+// static const char brbs[][5] = {
+//     "BRCS", "BREQ", "BRMI", "BRVS", "BRLT", "BRHS", "BRTS", "BRIE"
+// };
 
 static const char bset[][4] = {
     "SEC",  "SEZ",  "SEN",  "SEZ",  "SES",  "SEH",  "SET",  "SEI"
@@ -139,29 +139,29 @@ static const char bclr[][4] = {
 /*
  * Arithmetic Instructions
  */
-INSN(ADD,    "r%d, r%d", a->rd, a->rr)
-INSN(ADC,    "r%d, r%d", a->rd, a->rr)
-INSN(ADIW,   "r%d:r%d, %d", a->rd + 1, a->rd, a->imm)
-INSN(SUB,    "r%d, r%d", a->rd, a->rr)
-INSN(SUBI,   "r%d, %d", a->rd, a->imm)
-INSN(SBC,    "r%d, r%d", a->rd, a->rr)
-INSN(SBCI,   "r%d, %d", a->rd, a->imm)
-INSN(SBIW,   "r%d:r%d, %d", a->rd + 1, a->rd, a->imm)
-INSN(AND,    "r%d, r%d", a->rd, a->rr)
+// INSN(ADD,    "r%d, r%d", a->rd, a->rr)
+// INSN(ADC,    "r%d, r%d", a->rd, a->rr)
+// INSN(ADIW,   "r%d:r%d, %d", a->rd + 1, a->rd, a->imm)
+// INSN(SUB,    "r%d, r%d", a->rd, a->rr)
+// INSN(SUBI,   "r%d, %d", a->rd, a->imm)
+// INSN(SBC,    "r%d, r%d", a->rd, a->rr)
+// INSN(SBCI,   "r%d, %d", a->rd, a->imm)
+// INSN(SBIW,   "r%d:r%d, %d", a->rd + 1, a->rd, a->imm)
+// INSN(AND,    "r%d, r%d", a->rd, a->rr)
 // INSN(ANDI,   "r%d, %d", a->rd, a->imm)
-INSN(OR,     "r%d, r%d", a->rd, a->rr)
-INSN(ORI,    "r%d, %d", a->rd, a->imm)
-INSN(EOR,    "r%d, r%d", a->rd, a->rr)
-INSN(COM,    "r%d", a->rd)
+// INSN(OR,     "r%d, r%d", a->rd, a->rr)
+// INSN(ORI,    "r%d, %d", a->rd, a->imm)
+// INSN(EOR,    "r%d, r%d", a->rd, a->rr)
+// INSN(COM,    "r%d", a->rd)
 INSN(NEG,    "r%d", a->rd)
 INSN(INC,    "r%d", a->rd)
 INSN(DEC,    "r%d", a->rd)
-INSN(MUL,    "r%d, r%d", a->rd, a->rr)
-INSN(MULS,   "r%d, r%d", a->rd, a->rr)
-INSN(MULSU,  "r%d, r%d", a->rd, a->rr)
-INSN(FMUL,   "r%d, r%d", a->rd, a->rr)
-INSN(FMULS,  "r%d, r%d", a->rd, a->rr)
-INSN(FMULSU, "r%d, r%d", a->rd, a->rr)
+// INSN(MUL,    "r%d, r%d", a->rd, a->rr)
+// INSN(MULS,   "r%d, r%d", a->rd, a->rr)
+// INSN(MULSU,  "r%d, r%d", a->rd, a->rr)
+// INSN(FMUL,   "r%d, r%d", a->rd, a->rr)
+// INSN(FMULS,  "r%d, r%d", a->rd, a->rr)
+// INSN(FMULSU, "r%d, r%d", a->rd, a->rr)
 INSN(DES,    "%d", a->imm)
 
 /*
@@ -170,31 +170,31 @@ INSN(DES,    "%d", a->imm)
 INSN(RJMP,   ".%+d", a->imm * 2)
 INSN(IJMP,   "")
 INSN(EIJMP,  "")
-INSN(JMP,    "0x%x", a->imm * 2)
+// INSN(JMP,    "0x%x", a->imm * 2)
 // INSN(RCALL,  ".%+d", a->imm * 2)
 INSN(ICALL,  "")
 INSN(EICALL, "")
-INSN(CALL,   "0x%x", a->imm * 2)
+// INSN(CALL,   "0x%x", a->imm * 2)
 INSN(RET,    "")
 INSN(RETI,   "")
-INSN(CPSE,   "r%d, r%d", a->rd, a->rr)
-INSN(CP,     "r%d, r%d", a->rd, a->rr)
-INSN(CPC,    "r%d, r%d", a->rd, a->rr)
-INSN(CPI,    "r%d, %d", a->rd, a->imm)
+// INSN(CPSE,   "r%d, r%d", a->rd, a->rr)
+// INSN(CP,     "r%d, r%d", a->rd, a->rr)
+// INSN(CPC,    "r%d, r%d", a->rd, a->rr)
+// INSN(CPI,    "r%d, %d", a->rd, a->imm)
 INSN(SBRC,   "r%d, %d", a->rr, a->bit)
 INSN(SBRS,   "r%d, %d", a->rr, a->bit)
 INSN(SBIC,   "$%d, %d", a->reg, a->bit)
 INSN(SBIS,   "$%d, %d", a->reg, a->bit)
-INSN_MNEMONIC(BRBS,  brbs[a->bit], ".%+d", a->imm * 2)
-INSN_MNEMONIC(BRBC,  brbc[a->bit], ".%+d", a->imm * 2)
+// INSN_MNEMONIC(BRBS,  brbs[a->bit], ".%+d", a->imm * 2)
+// INSN_MNEMONIC(BRBC,  brbc[a->bit], ".%+d", a->imm * 2)
 
 /*
  * Data Transfer Instructions
  */
-INSN(MOV,    "r%d, r%d", a->rd, a->rr)
-INSN(MOVW,   "r%d:r%d, r%d:r%d", a->rd + 1, a->rd, a->rr + 1, a->rr)
-INSN(LDI,    "r%d, %d", a->rd, a->imm)
-INSN(LDS,    "r%d, %d", a->rd, a->imm)
+// INSN(MOV,    "r%d, r%d", a->rd, a->rr)
+// INSN(MOVW,   "r%d:r%d, r%d:r%d", a->rd + 1, a->rd, a->rr + 1, a->rr)
+// INSN(LDI,    "r%d, %d", a->rd, a->imm)
+// INSN(LDS,    "r%d, %d", a->rd, a->imm)
 INSN(LDX1,   "r%d, X", a->rd)
 INSN(LDX2,   "r%d, X+", a->rd)
 INSN(LDX3,   "r%d, -X", a->rd)
@@ -212,8 +212,8 @@ INSN(STY2,   "Y+, r%d", a->rd)
 INSN(STY3,   "-Y, r%d", a->rd)
 INSN(STZ2,   "Z+, r%d", a->rd)
 INSN(STZ3,   "-Z, r%d", a->rd)
-INSN(STDY,   "Y+%d, r%d", a->imm, a->rd)
-INSN(STDZ,   "Z+%d, r%d", a->imm, a->rd)
+// INSN(STDY,   "Y+%d, r%d", a->imm, a->rd)
+// INSN(STDZ,   "Z+%d, r%d", a->imm, a->rd)
 INSN(LPM1,   "")
 INSN(LPM2,   "r%d, Z", a->rd)
 INSN(LPMX,   "r%d, Z+", a->rd)
@@ -222,8 +222,8 @@ INSN(ELPM2,  "r%d, Z", a->rd)
 INSN(ELPMX,  "r%d, Z+", a->rd)
 INSN(SPM,    "")
 INSN(SPMX,   "Z+")
-INSN(IN,     "r%d, $%d", a->rd, a->imm)
-INSN(OUT,    "$%d, r%d", a->imm, a->rd)
+// INSN(IN,     "r%d, $%d", a->rd, a->imm)
+// INSN(OUT,    "$%d, r%d", a->imm, a->rd)
 INSN(PUSH,   "r%d", a->rd)
 INSN(POP,    "r%d", a->rd)
 INSN(XCH,    "Z, r%d", a->rd)
@@ -231,6 +231,9 @@ INSN(LAC,    "Z, r%d", a->rd)
 INSN(LAS,    "Z, r%d", a->rd)
 INSN(LAT,    "Z, r%d", a->rd)
 INSN(LDA,    "%d", a->imm)
+INSN(LDX,    "%d", a->imm)
+INSN(STA,    "%d", a->addr1)
+INSN(LDAAD,    "%d", a->addr1)
 
 /*
  * Bit and Bit-test Instructions
@@ -239,7 +242,7 @@ INSN(LSR,    "r%d", a->rd)
 INSN(ROR,    "r%d", a->rd)
 INSN(ASR,    "r%d", a->rd)
 INSN(SWAP,   "r%d", a->rd)
-INSN(SBI,    "$%d, %d", a->reg, a->bit)
+// INSN(SBI,    "$%d, %d", a->reg, a->bit)
 INSN(CBI,    "%d, %d", a->reg, a->bit)
 INSN(BST,    "r%d, %d", a->rd, a->bit)
 INSN(BLD,    "r%d, %d", a->rd, a->bit)
@@ -255,3 +258,5 @@ INSN(SLEEP,  "")
 INSN(WDR,    "")
 INSN(SEI,    "")
 INSN(CLD,    "")
+INSN(TXS,    "")
+INSN(BPL,    "")

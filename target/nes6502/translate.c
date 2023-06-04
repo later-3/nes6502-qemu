@@ -43,6 +43,7 @@
 static TCGv cpu_pc;
 
 static TCGv cpu_A;
+static TCGv cpu_X;
 
 static TCGv cpu_Cf;
 static TCGv cpu_Zf;
@@ -143,6 +144,7 @@ void avr_cpu_tcg_init(void)
     cpu_skip = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(skip), "skip");
 
     cpu_A = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_A), "A");
+    cpu_X = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_X), "X");
 
     for (i = 0; i < NUMBER_OF_CPU_REGISTERS; i++) {
         cpu_r[i] = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(r[i]),
@@ -151,35 +153,40 @@ void avr_cpu_tcg_init(void)
 #undef AVR_REG_OFFS
 }
 
-static int to_regs_16_31_by_one(DisasContext *ctx, int indx)
-{
-    return 16 + (indx % 16);
-}
+// static int to_regs_16_31_by_one(DisasContext *ctx, int indx)
+// {
+//     return 16 + (indx % 16);
+// }
 
-static int to_regs_16_23_by_one(DisasContext *ctx, int indx)
-{
-    return 16 + (indx % 8);
-}
+// static int to_regs_16_23_by_one(DisasContext *ctx, int indx)
+// {
+//     return 16 + (indx % 8);
+// }
 
-static int to_regs_24_30_by_two(DisasContext *ctx, int indx)
-{
-    return 24 + (indx % 4) * 2;
-}
+// static int to_regs_24_30_by_two(DisasContext *ctx, int indx)
+// {
+//     return 24 + (indx % 4) * 2;
+// }
 
-static int to_regs_00_30_by_two(DisasContext *ctx, int indx)
-{
-    return (indx % 16) * 2;
-}
+// static int to_regs_00_30_by_two(DisasContext *ctx, int indx)
+// {
+//     return (indx % 16) * 2;
+// }
 
 static uint16_t next_word(DisasContext *ctx)
 {
     return cpu_lduw_code(ctx->env, ctx->npc++ * 2);
 }
 
-static int append_16(DisasContext *ctx, int x)
-{
-    return x << 16 | next_word(ctx);
-}
+// static uint8_t next_byte(DisasContext *ctx)
+// {
+//     return cpu_ldub_code(ctx->env, ctx->npc++);
+// }
+
+// static int append_16(DisasContext *ctx, int x)
+// {
+//     return x << 16 | next_word(ctx);
+// }
 
 static bool avr_have_feature(DisasContext *ctx, int feature)
 {
@@ -192,18 +199,21 @@ static bool avr_have_feature(DisasContext *ctx, int feature)
 }
 
 /* decoder helper */
-static uint16_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
+static uint32_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
                            int i, int n)
 {
     while (++i <= n) {
+        // uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
+        // insn |= b << (16 - i * 8);
+
         uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
-        insn |= b << (16 - i * 8);
+        insn |= b << (32 - i * 8);
     }
     return insn;
 }
 
-static uint16_t decode_insn_load(DisasContext *ctx);
-static bool decode_insn(DisasContext *ctx, uint16_t insn);
+static uint32_t decode_insn_load(DisasContext *ctx);
+static bool decode_insn(DisasContext *ctx, uint32_t insn);
 #include "decode-insn.c.inc"
 
 /*
@@ -222,36 +232,36 @@ static bool decode_insn(DisasContext *ctx, uint16_t insn);
  *
  */
 
-static void gen_add_CHf(TCGv R, TCGv Rd, TCGv Rr)
-{
-    TCGv t1 = tcg_temp_new_i32();
-    TCGv t2 = tcg_temp_new_i32();
-    TCGv t3 = tcg_temp_new_i32();
+// static void gen_add_CHf(TCGv R, TCGv Rd, TCGv Rr)
+// {
+//     TCGv t1 = tcg_temp_new_i32();
+//     TCGv t2 = tcg_temp_new_i32();
+//     TCGv t3 = tcg_temp_new_i32();
 
-    tcg_gen_and_tl(t1, Rd, Rr); /* t1 = Rd & Rr */
-    tcg_gen_andc_tl(t2, Rd, R); /* t2 = Rd & ~R */
-    tcg_gen_andc_tl(t3, Rr, R); /* t3 = Rr & ~R */
-    tcg_gen_or_tl(t1, t1, t2); /* t1 = t1 | t2 | t3 */
-    tcg_gen_or_tl(t1, t1, t3);
+//     tcg_gen_and_tl(t1, Rd, Rr); /* t1 = Rd & Rr */
+//     tcg_gen_andc_tl(t2, Rd, R); /* t2 = Rd & ~R */
+//     tcg_gen_andc_tl(t3, Rr, R); /* t3 = Rr & ~R */
+//     tcg_gen_or_tl(t1, t1, t2); /* t1 = t1 | t2 | t3 */
+//     tcg_gen_or_tl(t1, t1, t3);
 
-    tcg_gen_shri_tl(cpu_Cf, t1, 7); /* Cf = t1(7) */
-    tcg_gen_shri_tl(cpu_Hf, t1, 3); /* Hf = t1(3) */
-    tcg_gen_andi_tl(cpu_Hf, cpu_Hf, 1);
-}
+//     tcg_gen_shri_tl(cpu_Cf, t1, 7); /* Cf = t1(7) */
+//     tcg_gen_shri_tl(cpu_Hf, t1, 3); /* Hf = t1(3) */
+//     tcg_gen_andi_tl(cpu_Hf, cpu_Hf, 1);
+// }
 
-static void gen_add_Vf(TCGv R, TCGv Rd, TCGv Rr)
-{
-    TCGv t1 = tcg_temp_new_i32();
-    TCGv t2 = tcg_temp_new_i32();
+// static void gen_add_Vf(TCGv R, TCGv Rd, TCGv Rr)
+// {
+//     TCGv t1 = tcg_temp_new_i32();
+//     TCGv t2 = tcg_temp_new_i32();
 
-    /* t1 = Rd & Rr & ~R | ~Rd & ~Rr & R */
-    /*    = (Rd ^ R) & ~(Rd ^ Rr) */
-    tcg_gen_xor_tl(t1, Rd, R);
-    tcg_gen_xor_tl(t2, Rd, Rr);
-    tcg_gen_andc_tl(t1, t1, t2);
+//     /* t1 = Rd & Rr & ~R | ~Rd & ~Rr & R */
+//     /*    = (Rd ^ R) & ~(Rd ^ Rr) */
+//     tcg_gen_xor_tl(t1, Rd, R);
+//     tcg_gen_xor_tl(t2, Rd, Rr);
+//     tcg_gen_andc_tl(t1, t1, t2);
 
-    tcg_gen_shri_tl(cpu_Vf, t1, 7); /* Vf = t1(7) */
-}
+//     tcg_gen_shri_tl(cpu_Vf, t1, 7); /* Vf = t1(7) */
+// }
 
 static void gen_sub_CHf(TCGv R, TCGv Rd, TCGv Rr)
 {
@@ -284,11 +294,11 @@ static void gen_sub_Vf(TCGv R, TCGv Rd, TCGv Rr)
     tcg_gen_shri_tl(cpu_Vf, t1, 7); /* Vf = t1(7) */
 }
 
-static void gen_NSf(TCGv R)
-{
-    tcg_gen_shri_tl(cpu_Nf, R, 7); /* Nf = R(7) */
-    tcg_gen_xor_tl(cpu_Sf, cpu_Nf, cpu_Vf); /* Sf = Nf ^ Vf */
-}
+// static void gen_NSf(TCGv R)
+// {
+//     tcg_gen_shri_tl(cpu_Nf, R, 7); /* Nf = R(7) */
+//     tcg_gen_xor_tl(cpu_Sf, cpu_Nf, cpu_Vf); /* Sf = Nf ^ Vf */
+// }
 
 static void gen_ZNSf(TCGv R)
 {
@@ -303,48 +313,48 @@ static void gen_ZNSf(TCGv R)
  *  Adds two registers without the C Flag and places the result in the
  *  destination register Rd.
  */
-static bool trans_ADD(DisasContext *ctx, arg_ADD *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_ADD(DisasContext *ctx, arg_ADD *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_add_tl(R, Rd, Rr); /* Rd = Rd + Rr */
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_add_tl(R, Rd, Rr); /* Rd = Rd + Rr */
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    gen_add_CHf(R, Rd, Rr);
-    gen_add_Vf(R, Rd, Rr);
-    gen_ZNSf(R);
+//     /* update status register */
+//     gen_add_CHf(R, Rd, Rr);
+//     gen_add_Vf(R, Rd, Rr);
+//     gen_ZNSf(R);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  Adds two registers and the contents of the C Flag and places the result in
  *  the destination register Rd.
  */
-static bool trans_ADC(DisasContext *ctx, arg_ADC *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_ADC(DisasContext *ctx, arg_ADC *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_add_tl(R, Rd, Rr); /* R = Rd + Rr + Cf */
-    tcg_gen_add_tl(R, R, cpu_Cf);
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_add_tl(R, Rd, Rr); /* R = Rd + Rr + Cf */
+//     tcg_gen_add_tl(R, R, cpu_Cf);
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    gen_add_CHf(R, Rd, Rr);
-    gen_add_Vf(R, Rd, Rr);
-    gen_ZNSf(R);
+//     /* update status register */
+//     gen_add_CHf(R, Rd, Rr);
+//     gen_add_Vf(R, Rd, Rr);
+//     gen_ZNSf(R);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  Adds an immediate value (0 - 63) to a register pair and places the result
@@ -353,145 +363,145 @@ static bool trans_ADC(DisasContext *ctx, arg_ADC *a)
  *  instruction is not available in all devices. Refer to the device specific
  *  instruction set summary.
  */
-static bool trans_ADIW(DisasContext *ctx, arg_ADIW *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_ADIW_SBIW)) {
-        return true;
-    }
+// static bool trans_ADIW(DisasContext *ctx, arg_ADIW *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_ADIW_SBIW)) {
+//         return true;
+//     }
 
-    TCGv RdL = cpu_r[a->rd];
-    TCGv RdH = cpu_r[a->rd + 1];
-    int Imm = (a->imm);
-    TCGv R = tcg_temp_new_i32();
-    TCGv Rd = tcg_temp_new_i32();
+//     TCGv RdL = cpu_r[a->rd];
+//     TCGv RdH = cpu_r[a->rd + 1];
+//     int Imm = (a->imm);
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv Rd = tcg_temp_new_i32();
 
-    tcg_gen_deposit_tl(Rd, RdL, RdH, 8, 8); /* Rd = RdH:RdL */
-    tcg_gen_addi_tl(R, Rd, Imm); /* R = Rd + Imm */
-    tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
+//     tcg_gen_deposit_tl(Rd, RdL, RdH, 8, 8); /* Rd = RdH:RdL */
+//     tcg_gen_addi_tl(R, Rd, Imm); /* R = Rd + Imm */
+//     tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
 
-    /* update status register */
-    tcg_gen_andc_tl(cpu_Cf, Rd, R); /* Cf = Rd & ~R */
-    tcg_gen_shri_tl(cpu_Cf, cpu_Cf, 15);
-    tcg_gen_andc_tl(cpu_Vf, R, Rd); /* Vf = R & ~Rd */
-    tcg_gen_shri_tl(cpu_Vf, cpu_Vf, 15);
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
-    tcg_gen_shri_tl(cpu_Nf, R, 15); /* Nf = R(15) */
-    tcg_gen_xor_tl(cpu_Sf, cpu_Nf, cpu_Vf);/* Sf = Nf ^ Vf */
+//     /* update status register */
+//     tcg_gen_andc_tl(cpu_Cf, Rd, R); /* Cf = Rd & ~R */
+//     tcg_gen_shri_tl(cpu_Cf, cpu_Cf, 15);
+//     tcg_gen_andc_tl(cpu_Vf, R, Rd); /* Vf = R & ~Rd */
+//     tcg_gen_shri_tl(cpu_Vf, cpu_Vf, 15);
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     tcg_gen_shri_tl(cpu_Nf, R, 15); /* Nf = R(15) */
+//     tcg_gen_xor_tl(cpu_Sf, cpu_Nf, cpu_Vf);/* Sf = Nf ^ Vf */
 
-    /* update output registers */
-    tcg_gen_andi_tl(RdL, R, 0xff);
-    tcg_gen_shri_tl(RdH, R, 8);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_andi_tl(RdL, R, 0xff);
+//     tcg_gen_shri_tl(RdH, R, 8);
+//     return true;
+// }
 
 /*
  *  Subtracts two registers and places the result in the destination
  *  register Rd.
  */
-static bool trans_SUB(DisasContext *ctx, arg_SUB *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_SUB(DisasContext *ctx, arg_SUB *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr */
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr */
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    tcg_gen_andc_tl(cpu_Cf, Rd, R); /* Cf = Rd & ~R */
-    gen_sub_CHf(R, Rd, Rr);
-    gen_sub_Vf(R, Rd, Rr);
-    gen_ZNSf(R);
+//     /* update status register */
+//     tcg_gen_andc_tl(cpu_Cf, Rd, R); /* Cf = Rd & ~R */
+//     gen_sub_CHf(R, Rd, Rr);
+//     gen_sub_Vf(R, Rd, Rr);
+//     gen_ZNSf(R);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  Subtracts a register and a constant and places the result in the
  *  destination register Rd. This instruction is working on Register R16 to R31
  *  and is very well suited for operations on the X, Y, and Z-pointers.
  */
-static bool trans_SUBI(DisasContext *ctx, arg_SUBI *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = tcg_constant_i32(a->imm);
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_SUBI(DisasContext *ctx, arg_SUBI *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = tcg_constant_i32(a->imm);
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Imm */
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Imm */
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    gen_sub_CHf(R, Rd, Rr);
-    gen_sub_Vf(R, Rd, Rr);
-    gen_ZNSf(R);
+//     /* update status register */
+//     gen_sub_CHf(R, Rd, Rr);
+//     gen_sub_Vf(R, Rd, Rr);
+//     gen_ZNSf(R);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  Subtracts two registers and subtracts with the C Flag and places the
  *  result in the destination register Rd.
  */
-static bool trans_SBC(DisasContext *ctx, arg_SBC *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
-    TCGv zero = tcg_constant_i32(0);
+// static bool trans_SBC(DisasContext *ctx, arg_SBC *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv zero = tcg_constant_i32(0);
 
-    tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr - Cf */
-    tcg_gen_sub_tl(R, R, cpu_Cf);
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr - Cf */
+//     tcg_gen_sub_tl(R, R, cpu_Cf);
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    gen_sub_CHf(R, Rd, Rr);
-    gen_sub_Vf(R, Rd, Rr);
-    gen_NSf(R);
+//     /* update status register */
+//     gen_sub_CHf(R, Rd, Rr);
+//     gen_sub_Vf(R, Rd, Rr);
+//     gen_NSf(R);
 
-    /*
-     * Previous value remains unchanged when the result is zero;
-     * cleared otherwise.
-     */
-    tcg_gen_movcond_tl(TCG_COND_EQ, cpu_Zf, R, zero, cpu_Zf, zero);
+//     /*
+//      * Previous value remains unchanged when the result is zero;
+//      * cleared otherwise.
+//      */
+//     tcg_gen_movcond_tl(TCG_COND_EQ, cpu_Zf, R, zero, cpu_Zf, zero);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  SBCI -- Subtract Immediate with Carry
  */
-static bool trans_SBCI(DisasContext *ctx, arg_SBCI *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = tcg_constant_i32(a->imm);
-    TCGv R = tcg_temp_new_i32();
-    TCGv zero = tcg_constant_i32(0);
+// static bool trans_SBCI(DisasContext *ctx, arg_SBCI *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = tcg_constant_i32(a->imm);
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv zero = tcg_constant_i32(0);
 
-    tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr - Cf */
-    tcg_gen_sub_tl(R, R, cpu_Cf);
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr - Cf */
+//     tcg_gen_sub_tl(R, R, cpu_Cf);
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    gen_sub_CHf(R, Rd, Rr);
-    gen_sub_Vf(R, Rd, Rr);
-    gen_NSf(R);
+//     /* update status register */
+//     gen_sub_CHf(R, Rd, Rr);
+//     gen_sub_Vf(R, Rd, Rr);
+//     gen_NSf(R);
 
-    /*
-     * Previous value remains unchanged when the result is zero;
-     * cleared otherwise.
-     */
-    tcg_gen_movcond_tl(TCG_COND_EQ, cpu_Zf, R, zero, cpu_Zf, zero);
+//     /*
+//      * Previous value remains unchanged when the result is zero;
+//      * cleared otherwise.
+//      */
+//     tcg_gen_movcond_tl(TCG_COND_EQ, cpu_Zf, R, zero, cpu_Zf, zero);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  Subtracts an immediate value (0-63) from a register pair and places the
@@ -500,58 +510,58 @@ static bool trans_SBCI(DisasContext *ctx, arg_SBCI *a)
  *  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-static bool trans_SBIW(DisasContext *ctx, arg_SBIW *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_ADIW_SBIW)) {
-        return true;
-    }
+// static bool trans_SBIW(DisasContext *ctx, arg_SBIW *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_ADIW_SBIW)) {
+//         return true;
+//     }
 
-    TCGv RdL = cpu_r[a->rd];
-    TCGv RdH = cpu_r[a->rd + 1];
-    int Imm = (a->imm);
-    TCGv R = tcg_temp_new_i32();
-    TCGv Rd = tcg_temp_new_i32();
+//     TCGv RdL = cpu_r[a->rd];
+//     TCGv RdH = cpu_r[a->rd + 1];
+//     int Imm = (a->imm);
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv Rd = tcg_temp_new_i32();
 
-    tcg_gen_deposit_tl(Rd, RdL, RdH, 8, 8); /* Rd = RdH:RdL */
-    tcg_gen_subi_tl(R, Rd, Imm); /* R = Rd - Imm */
-    tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
+//     tcg_gen_deposit_tl(Rd, RdL, RdH, 8, 8); /* Rd = RdH:RdL */
+//     tcg_gen_subi_tl(R, Rd, Imm); /* R = Rd - Imm */
+//     tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
 
-    /* update status register */
-    tcg_gen_andc_tl(cpu_Cf, R, Rd);
-    tcg_gen_shri_tl(cpu_Cf, cpu_Cf, 15); /* Cf = R & ~Rd */
-    tcg_gen_andc_tl(cpu_Vf, Rd, R);
-    tcg_gen_shri_tl(cpu_Vf, cpu_Vf, 15); /* Vf = Rd & ~R */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
-    tcg_gen_shri_tl(cpu_Nf, R, 15); /* Nf = R(15) */
-    tcg_gen_xor_tl(cpu_Sf, cpu_Nf, cpu_Vf); /* Sf = Nf ^ Vf */
+//     /* update status register */
+//     tcg_gen_andc_tl(cpu_Cf, R, Rd);
+//     tcg_gen_shri_tl(cpu_Cf, cpu_Cf, 15); /* Cf = R & ~Rd */
+//     tcg_gen_andc_tl(cpu_Vf, Rd, R);
+//     tcg_gen_shri_tl(cpu_Vf, cpu_Vf, 15); /* Vf = Rd & ~R */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     tcg_gen_shri_tl(cpu_Nf, R, 15); /* Nf = R(15) */
+//     tcg_gen_xor_tl(cpu_Sf, cpu_Nf, cpu_Vf); /* Sf = Nf ^ Vf */
 
-    /* update output registers */
-    tcg_gen_andi_tl(RdL, R, 0xff);
-    tcg_gen_shri_tl(RdH, R, 8);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_andi_tl(RdL, R, 0xff);
+//     tcg_gen_shri_tl(RdH, R, 8);
+//     return true;
+// }
 
 /*
  *  Performs the logical AND between the contents of register Rd and register
  *  Rr and places the result in the destination register Rd.
  */
-static bool trans_AND(DisasContext *ctx, arg_AND *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_AND(DisasContext *ctx, arg_AND *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_and_tl(R, Rd, Rr); /* Rd = Rd and Rr */
+//     tcg_gen_and_tl(R, Rd, Rr); /* Rd = Rd and Rr */
 
-    /* update status register */
-    tcg_gen_movi_tl(cpu_Vf, 0); /* Vf = 0 */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
-    gen_ZNSf(R);
+//     /* update status register */
+//     tcg_gen_movi_tl(cpu_Vf, 0); /* Vf = 0 */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     gen_ZNSf(R);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  Performs the logical AND between the contents of register Rd and a constant
@@ -575,76 +585,76 @@ static bool trans_AND(DisasContext *ctx, arg_AND *a)
  *  Performs the logical OR between the contents of register Rd and register
  *  Rr and places the result in the destination register Rd.
  */
-static bool trans_OR(DisasContext *ctx, arg_OR *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_OR(DisasContext *ctx, arg_OR *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_or_tl(R, Rd, Rr);
+//     tcg_gen_or_tl(R, Rd, Rr);
 
-    /* update status register */
-    tcg_gen_movi_tl(cpu_Vf, 0);
-    gen_ZNSf(R);
+//     /* update status register */
+//     tcg_gen_movi_tl(cpu_Vf, 0);
+//     gen_ZNSf(R);
 
-    /* update output registers */
-    tcg_gen_mov_tl(Rd, R);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_mov_tl(Rd, R);
+//     return true;
+// }
 
 /*
  *  Performs the logical OR between the contents of register Rd and a
  *  constant and places the result in the destination register Rd.
  */
-static bool trans_ORI(DisasContext *ctx, arg_ORI *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    int Imm = (a->imm);
+// static bool trans_ORI(DisasContext *ctx, arg_ORI *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     int Imm = (a->imm);
 
-    tcg_gen_ori_tl(Rd, Rd, Imm); /* Rd = Rd | Imm */
+//     tcg_gen_ori_tl(Rd, Rd, Imm); /* Rd = Rd | Imm */
 
-    /* update status register */
-    tcg_gen_movi_tl(cpu_Vf, 0x00); /* Vf = 0 */
-    gen_ZNSf(Rd);
+//     /* update status register */
+//     tcg_gen_movi_tl(cpu_Vf, 0x00); /* Vf = 0 */
+//     gen_ZNSf(Rd);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  Performs the logical EOR between the contents of register Rd and
  *  register Rr and places the result in the destination register Rd.
  */
-static bool trans_EOR(DisasContext *ctx, arg_EOR *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
+// static bool trans_EOR(DisasContext *ctx, arg_EOR *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
 
-    tcg_gen_xor_tl(Rd, Rd, Rr);
+//     tcg_gen_xor_tl(Rd, Rd, Rr);
 
-    /* update status register */
-    tcg_gen_movi_tl(cpu_Vf, 0);
-    gen_ZNSf(Rd);
+//     /* update status register */
+//     tcg_gen_movi_tl(cpu_Vf, 0);
+//     gen_ZNSf(Rd);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  Clears the specified bits in register Rd. Performs the logical AND
  *  between the contents of register Rd and the complement of the constant mask
  *  K. The result will be placed in register Rd.
  */
-static bool trans_COM(DisasContext *ctx, arg_COM *a)
-{
-    TCGv Rd = cpu_r[a->rd];
+// static bool trans_COM(DisasContext *ctx, arg_COM *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
 
-    tcg_gen_xori_tl(Rd, Rd, 0xff);
+//     tcg_gen_xori_tl(Rd, Rd, 0xff);
 
-    /* update status register */
-    tcg_gen_movi_tl(cpu_Cf, 1); /* Cf = 1 */
-    tcg_gen_movi_tl(cpu_Vf, 0); /* Vf = 0 */
-    gen_ZNSf(Rd);
-    return true;
-}
+//     /* update status register */
+//     tcg_gen_movi_tl(cpu_Cf, 1); /* Cf = 1 */
+//     tcg_gen_movi_tl(cpu_Vf, 0); /* Vf = 0 */
+//     gen_ZNSf(Rd);
+//     return true;
+// }
 
 /*
  *  Replaces the contents of register Rd with its two's complement; the
@@ -716,184 +726,184 @@ static bool trans_DEC(DisasContext *ctx, arg_DEC *a)
 /*
  *  This instruction performs 8-bit x 8-bit -> 16-bit unsigned multiplication.
  */
-static bool trans_MUL(DisasContext *ctx, arg_MUL *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
-        return true;
-    }
+// static bool trans_MUL(DisasContext *ctx, arg_MUL *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
+//         return true;
+//     }
 
-    TCGv R0 = cpu_r[0];
-    TCGv R1 = cpu_r[1];
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+//     TCGv R0 = cpu_r[0];
+//     TCGv R1 = cpu_r[1];
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_mul_tl(R, Rd, Rr); /* R = Rd * Rr */
-    tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
+//     tcg_gen_mul_tl(R, Rd, Rr); /* R = Rd * Rr */
+//     tcg_gen_andi_tl(R0, R, 0xff);
+//     tcg_gen_shri_tl(R1, R, 8);
 
-    /* update status register */
-    tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
-    return true;
-}
+//     /* update status register */
+//     tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     return true;
+// }
 
 /*
  *  This instruction performs 8-bit x 8-bit -> 16-bit signed multiplication.
  */
-static bool trans_MULS(DisasContext *ctx, arg_MULS *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
-        return true;
-    }
+// static bool trans_MULS(DisasContext *ctx, arg_MULS *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
+//         return true;
+//     }
 
-    TCGv R0 = cpu_r[0];
-    TCGv R1 = cpu_r[1];
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
-    TCGv t0 = tcg_temp_new_i32();
-    TCGv t1 = tcg_temp_new_i32();
+//     TCGv R0 = cpu_r[0];
+//     TCGv R1 = cpu_r[1];
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv t0 = tcg_temp_new_i32();
+//     TCGv t1 = tcg_temp_new_i32();
 
-    tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
-    tcg_gen_ext8s_tl(t1, Rr); /* make Rr full 32 bit signed */
-    tcg_gen_mul_tl(R, t0, t1); /* R = Rd * Rr */
-    tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
-    tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
+//     tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
+//     tcg_gen_ext8s_tl(t1, Rr); /* make Rr full 32 bit signed */
+//     tcg_gen_mul_tl(R, t0, t1); /* R = Rd * Rr */
+//     tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
+//     tcg_gen_andi_tl(R0, R, 0xff);
+//     tcg_gen_shri_tl(R1, R, 8);
 
-    /* update status register */
-    tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
-    return true;
-}
+//     /* update status register */
+//     tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     return true;
+// }
 
 /*
  *  This instruction performs 8-bit x 8-bit -> 16-bit multiplication of a
  *  signed and an unsigned number.
  */
-static bool trans_MULSU(DisasContext *ctx, arg_MULSU *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
-        return true;
-    }
+// static bool trans_MULSU(DisasContext *ctx, arg_MULSU *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
+//         return true;
+//     }
 
-    TCGv R0 = cpu_r[0];
-    TCGv R1 = cpu_r[1];
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
-    TCGv t0 = tcg_temp_new_i32();
+//     TCGv R0 = cpu_r[0];
+//     TCGv R1 = cpu_r[1];
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv t0 = tcg_temp_new_i32();
 
-    tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
-    tcg_gen_mul_tl(R, t0, Rr); /* R = Rd * Rr */
-    tcg_gen_andi_tl(R, R, 0xffff); /* make R 16 bits */
-    tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
+//     tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
+//     tcg_gen_mul_tl(R, t0, Rr); /* R = Rd * Rr */
+//     tcg_gen_andi_tl(R, R, 0xffff); /* make R 16 bits */
+//     tcg_gen_andi_tl(R0, R, 0xff);
+//     tcg_gen_shri_tl(R1, R, 8);
 
-    /* update status register */
-    tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
-    return true;
-}
+//     /* update status register */
+//     tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     return true;
+// }
 
 /*
  *  This instruction performs 8-bit x 8-bit -> 16-bit unsigned
  *  multiplication and shifts the result one bit left.
  */
-static bool trans_FMUL(DisasContext *ctx, arg_FMUL *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
-        return true;
-    }
+// static bool trans_FMUL(DisasContext *ctx, arg_FMUL *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
+//         return true;
+//     }
 
-    TCGv R0 = cpu_r[0];
-    TCGv R1 = cpu_r[1];
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+//     TCGv R0 = cpu_r[0];
+//     TCGv R1 = cpu_r[1];
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_mul_tl(R, Rd, Rr); /* R = Rd * Rr */
+//     tcg_gen_mul_tl(R, Rd, Rr); /* R = Rd * Rr */
 
-    /* update status register */
-    tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     /* update status register */
+//     tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
 
-    /* update output registers */
-    tcg_gen_shli_tl(R, R, 1);
-    tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
-    tcg_gen_andi_tl(R1, R1, 0xff);
-    return true;
-}
-
-/*
- *  This instruction performs 8-bit x 8-bit -> 16-bit signed multiplication
- *  and shifts the result one bit left.
- */
-static bool trans_FMULS(DisasContext *ctx, arg_FMULS *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
-        return true;
-    }
-
-    TCGv R0 = cpu_r[0];
-    TCGv R1 = cpu_r[1];
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
-    TCGv t0 = tcg_temp_new_i32();
-    TCGv t1 = tcg_temp_new_i32();
-
-    tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
-    tcg_gen_ext8s_tl(t1, Rr); /* make Rr full 32 bit signed */
-    tcg_gen_mul_tl(R, t0, t1); /* R = Rd * Rr */
-    tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
-
-    /* update status register */
-    tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
-
-    /* update output registers */
-    tcg_gen_shli_tl(R, R, 1);
-    tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
-    tcg_gen_andi_tl(R1, R1, 0xff);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_shli_tl(R, R, 1);
+//     tcg_gen_andi_tl(R0, R, 0xff);
+//     tcg_gen_shri_tl(R1, R, 8);
+//     tcg_gen_andi_tl(R1, R1, 0xff);
+//     return true;
+// }
 
 /*
  *  This instruction performs 8-bit x 8-bit -> 16-bit signed multiplication
  *  and shifts the result one bit left.
  */
-static bool trans_FMULSU(DisasContext *ctx, arg_FMULSU *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
-        return true;
-    }
+// static bool trans_FMULS(DisasContext *ctx, arg_FMULS *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
+//         return true;
+//     }
 
-    TCGv R0 = cpu_r[0];
-    TCGv R1 = cpu_r[1];
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
-    TCGv t0 = tcg_temp_new_i32();
+//     TCGv R0 = cpu_r[0];
+//     TCGv R1 = cpu_r[1];
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv t0 = tcg_temp_new_i32();
+//     TCGv t1 = tcg_temp_new_i32();
 
-    tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
-    tcg_gen_mul_tl(R, t0, Rr); /* R = Rd * Rr */
-    tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
+//     tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
+//     tcg_gen_ext8s_tl(t1, Rr); /* make Rr full 32 bit signed */
+//     tcg_gen_mul_tl(R, t0, t1); /* R = Rd * Rr */
+//     tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
 
-    /* update status register */
-    tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+//     /* update status register */
+//     tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
 
-    /* update output registers */
-    tcg_gen_shli_tl(R, R, 1);
-    tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
-    tcg_gen_andi_tl(R1, R1, 0xff);
-    return true;
-}
+//     /* update output registers */
+//     tcg_gen_shli_tl(R, R, 1);
+//     tcg_gen_andi_tl(R0, R, 0xff);
+//     tcg_gen_shri_tl(R1, R, 8);
+//     tcg_gen_andi_tl(R1, R1, 0xff);
+//     return true;
+// }
+
+/*
+ *  This instruction performs 8-bit x 8-bit -> 16-bit signed multiplication
+ *  and shifts the result one bit left.
+ */
+// static bool trans_FMULSU(DisasContext *ctx, arg_FMULSU *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_MUL)) {
+//         return true;
+//     }
+
+//     TCGv R0 = cpu_r[0];
+//     TCGv R1 = cpu_r[1];
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv t0 = tcg_temp_new_i32();
+
+//     tcg_gen_ext8s_tl(t0, Rd); /* make Rd full 32 bit signed */
+//     tcg_gen_mul_tl(R, t0, Rr); /* R = Rd * Rr */
+//     tcg_gen_andi_tl(R, R, 0xffff); /* make it 16 bits */
+
+//     /* update status register */
+//     tcg_gen_shri_tl(cpu_Cf, R, 15); /* Cf = R(15) */
+//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_Zf, R, 0); /* Zf = R == 0 */
+
+//     /* update output registers */
+//     tcg_gen_shli_tl(R, R, 1);
+//     tcg_gen_andi_tl(R0, R, 0xff);
+//     tcg_gen_shri_tl(R1, R, 8);
+//     tcg_gen_andi_tl(R1, R1, 0xff);
+//     return true;
+// }
 
 /*
  *  The module is an instruction set extension to the AVR CPU, performing
@@ -1060,16 +1070,16 @@ static bool trans_EIJMP(DisasContext *ctx, arg_EIJMP *a)
  *  RJMP.  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.0
  */
-static bool trans_JMP(DisasContext *ctx, arg_JMP *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_JMP_CALL)) {
-        return true;
-    }
+// static bool trans_JMP(DisasContext *ctx, arg_JMP *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_JMP_CALL)) {
+//         return true;
+//     }
 
-    gen_goto_tb(ctx, 0, a->imm);
+//     gen_goto_tb(ctx, 0, a->imm);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  Relative call to an address within PC - 2K + 1 and PC + 2K (words). The
@@ -1093,6 +1103,29 @@ static bool trans_JMP(DisasContext *ctx, arg_JMP *a)
 static bool trans_LDA(DisasContext *ctx, arg_LDA *a)
 {
     tcg_gen_movi_i32(cpu_A, a->imm);
+    return true;
+}
+
+static bool trans_LDX(DisasContext *ctx, arg_LDX *a)
+{
+    tcg_gen_movi_i32(cpu_X, a->imm);
+    return true;
+}
+
+static bool trans_STA(DisasContext *ctx, arg_STA *a)
+{
+    // addr2 = next_byte(ctx);
+    uint16_t addr;
+    addr = a->addr1 | (a->addr2 << 8);
+    printf("addr 0x%x\n", addr);
+    return true;
+}
+
+static bool trans_LDAAD(DisasContext *ctx, arg_STA *a)
+{
+    uint16_t addr;
+    addr = a->addr1 | (a->addr2 << 8);
+    printf("addr 0x%x\n", addr);
     return true;
 }
 
@@ -1145,20 +1178,20 @@ static bool trans_EICALL(DisasContext *ctx, arg_EICALL *a)
  *  CALL.  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-static bool trans_CALL(DisasContext *ctx, arg_CALL *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_JMP_CALL)) {
-        return true;
-    }
+// static bool trans_CALL(DisasContext *ctx, arg_CALL *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_JMP_CALL)) {
+//         return true;
+//     }
 
-    int Imm = a->imm;
-    int ret = ctx->npc;
+//     int Imm = a->imm;
+//     int ret = ctx->npc;
 
-    gen_push_ret(ctx, ret);
-    gen_goto_tb(ctx, 0, Imm);
+//     gen_push_ret(ctx, ret);
+//     gen_goto_tb(ctx, 0, Imm);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  Returns from subroutine. The return address is loaded from the STACK.
@@ -1194,84 +1227,84 @@ static bool trans_RETI(DisasContext *ctx, arg_RETI *a)
  *  This instruction performs a compare between two registers Rd and Rr, and
  *  skips the next instruction if Rd = Rr.
  */
-static bool trans_CPSE(DisasContext *ctx, arg_CPSE *a)
-{
-    ctx->skip_cond = TCG_COND_EQ;
-    ctx->skip_var0 = cpu_r[a->rd];
-    ctx->skip_var1 = cpu_r[a->rr];
-    return true;
-}
+// static bool trans_CPSE(DisasContext *ctx, arg_CPSE *a)
+// {
+//     ctx->skip_cond = TCG_COND_EQ;
+//     ctx->skip_var0 = cpu_r[a->rd];
+//     ctx->skip_var1 = cpu_r[a->rr];
+//     return true;
+// }
 
 /*
  *  This instruction performs a compare between two registers Rd and Rr.
  *  None of the registers are changed. All conditional branches can be used
  *  after this instruction.
  */
-static bool trans_CP(DisasContext *ctx, arg_CP *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_CP(DisasContext *ctx, arg_CP *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr */
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr */
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    gen_sub_CHf(R, Rd, Rr);
-    gen_sub_Vf(R, Rd, Rr);
-    gen_ZNSf(R);
-    return true;
-}
+//     /* update status register */
+//     gen_sub_CHf(R, Rd, Rr);
+//     gen_sub_Vf(R, Rd, Rr);
+//     gen_ZNSf(R);
+//     return true;
+// }
 
 /*
  *  This instruction performs a compare between two registers Rd and Rr and
  *  also takes into account the previous carry. None of the registers are
  *  changed. All conditional branches can be used after this instruction.
  */
-static bool trans_CPC(DisasContext *ctx, arg_CPC *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
-    TCGv R = tcg_temp_new_i32();
-    TCGv zero = tcg_constant_i32(0);
+// static bool trans_CPC(DisasContext *ctx, arg_CPC *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
+//     TCGv R = tcg_temp_new_i32();
+//     TCGv zero = tcg_constant_i32(0);
 
-    tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr - Cf */
-    tcg_gen_sub_tl(R, R, cpu_Cf);
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
-    /* update status register */
-    gen_sub_CHf(R, Rd, Rr);
-    gen_sub_Vf(R, Rd, Rr);
-    gen_NSf(R);
+//     tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr - Cf */
+//     tcg_gen_sub_tl(R, R, cpu_Cf);
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     /* update status register */
+//     gen_sub_CHf(R, Rd, Rr);
+//     gen_sub_Vf(R, Rd, Rr);
+//     gen_NSf(R);
 
-    /*
-     * Previous value remains unchanged when the result is zero;
-     * cleared otherwise.
-     */
-    tcg_gen_movcond_tl(TCG_COND_EQ, cpu_Zf, R, zero, cpu_Zf, zero);
-    return true;
-}
+//     /*
+//      * Previous value remains unchanged when the result is zero;
+//      * cleared otherwise.
+//      */
+//     tcg_gen_movcond_tl(TCG_COND_EQ, cpu_Zf, R, zero, cpu_Zf, zero);
+//     return true;
+// }
 
 /*
  *  This instruction performs a compare between register Rd and a constant.
  *  The register is not changed. All conditional branches can be used after this
  *  instruction.
  */
-static bool trans_CPI(DisasContext *ctx, arg_CPI *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    int Imm = a->imm;
-    TCGv Rr = tcg_constant_i32(Imm);
-    TCGv R = tcg_temp_new_i32();
+// static bool trans_CPI(DisasContext *ctx, arg_CPI *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     int Imm = a->imm;
+//     TCGv Rr = tcg_constant_i32(Imm);
+//     TCGv R = tcg_temp_new_i32();
 
-    tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr */
-    tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
+//     tcg_gen_sub_tl(R, Rd, Rr); /* R = Rd - Rr */
+//     tcg_gen_andi_tl(R, R, 0xff); /* make it 8 bits */
 
-    /* update status register */
-    gen_sub_CHf(R, Rd, Rr);
-    gen_sub_Vf(R, Rd, Rr);
-    gen_ZNSf(R);
-    return true;
-}
+//     /* update status register */
+//     gen_sub_CHf(R, Rd, Rr);
+//     gen_sub_Vf(R, Rd, Rr);
+//     gen_ZNSf(R);
+//     return true;
+// }
 
 /*
  *  This instruction tests a single bit in a register and skips the next
@@ -1346,48 +1379,48 @@ static bool trans_SBIS(DisasContext *ctx, arg_SBIS *a)
  *  parameter k is the offset from PC and is represented in two's complement
  *  form.
  */
-static bool trans_BRBC(DisasContext *ctx, arg_BRBC *a)
-{
-    TCGLabel *not_taken = gen_new_label();
+// static bool trans_BRBC(DisasContext *ctx, arg_BRBC *a)
+// {
+//     TCGLabel *not_taken = gen_new_label();
 
-    TCGv var;
+//     TCGv var;
 
-    switch (a->bit) {
-    case 0x00:
-        var = cpu_Cf;
-        break;
-    case 0x01:
-        var = cpu_Zf;
-        break;
-    case 0x02:
-        var = cpu_Nf;
-        break;
-    case 0x03:
-        var = cpu_Vf;
-        break;
-    case 0x04:
-        var = cpu_Sf;
-        break;
-    case 0x05:
-        var = cpu_Hf;
-        break;
-    case 0x06:
-        var = cpu_Tf;
-        break;
-    case 0x07:
-        var = cpu_If;
-        break;
-    default:
-        g_assert_not_reached();
-    }
+//     switch (a->bit) {
+//     case 0x00:
+//         var = cpu_Cf;
+//         break;
+//     case 0x01:
+//         var = cpu_Zf;
+//         break;
+//     case 0x02:
+//         var = cpu_Nf;
+//         break;
+//     case 0x03:
+//         var = cpu_Vf;
+//         break;
+//     case 0x04:
+//         var = cpu_Sf;
+//         break;
+//     case 0x05:
+//         var = cpu_Hf;
+//         break;
+//     case 0x06:
+//         var = cpu_Tf;
+//         break;
+//     case 0x07:
+//         var = cpu_If;
+//         break;
+//     default:
+//         g_assert_not_reached();
+//     }
 
-    tcg_gen_brcondi_i32(TCG_COND_NE, var, 0, not_taken);
-    gen_goto_tb(ctx, 0, ctx->npc + a->imm);
-    gen_set_label(not_taken);
+//     tcg_gen_brcondi_i32(TCG_COND_NE, var, 0, not_taken);
+//     gen_goto_tb(ctx, 0, ctx->npc + a->imm);
+//     gen_set_label(not_taken);
 
-    ctx->base.is_jmp = DISAS_CHAIN;
-    return true;
-}
+//     ctx->base.is_jmp = DISAS_CHAIN;
+//     return true;
+// }
 
 /*
  *  Conditional relative branch. Tests a single bit in SREG and branches
@@ -1395,48 +1428,48 @@ static bool trans_BRBC(DisasContext *ctx, arg_BRBC *a)
  *  PC in either direction (PC - 63 < = destination <= PC + 64). The parameter k
  *  is the offset from PC and is represented in two's complement form.
  */
-static bool trans_BRBS(DisasContext *ctx, arg_BRBS *a)
-{
-    TCGLabel *not_taken = gen_new_label();
+// static bool trans_BRBS(DisasContext *ctx, arg_BRBS *a)
+// {
+//     TCGLabel *not_taken = gen_new_label();
 
-    TCGv var;
+//     TCGv var;
 
-    switch (a->bit) {
-    case 0x00:
-        var = cpu_Cf;
-        break;
-    case 0x01:
-        var = cpu_Zf;
-        break;
-    case 0x02:
-        var = cpu_Nf;
-        break;
-    case 0x03:
-        var = cpu_Vf;
-        break;
-    case 0x04:
-        var = cpu_Sf;
-        break;
-    case 0x05:
-        var = cpu_Hf;
-        break;
-    case 0x06:
-        var = cpu_Tf;
-        break;
-    case 0x07:
-        var = cpu_If;
-        break;
-    default:
-        g_assert_not_reached();
-    }
+//     switch (a->bit) {
+//     case 0x00:
+//         var = cpu_Cf;
+//         break;
+//     case 0x01:
+//         var = cpu_Zf;
+//         break;
+//     case 0x02:
+//         var = cpu_Nf;
+//         break;
+//     case 0x03:
+//         var = cpu_Vf;
+//         break;
+//     case 0x04:
+//         var = cpu_Sf;
+//         break;
+//     case 0x05:
+//         var = cpu_Hf;
+//         break;
+//     case 0x06:
+//         var = cpu_Tf;
+//         break;
+//     case 0x07:
+//         var = cpu_If;
+//         break;
+//     default:
+//         g_assert_not_reached();
+//     }
 
-    tcg_gen_brcondi_i32(TCG_COND_EQ, var, 0, not_taken);
-    gen_goto_tb(ctx, 0, ctx->npc + a->imm);
-    gen_set_label(not_taken);
+//     tcg_gen_brcondi_i32(TCG_COND_EQ, var, 0, not_taken);
+//     gen_goto_tb(ctx, 0, ctx->npc + a->imm);
+//     gen_set_label(not_taken);
 
-    ctx->base.is_jmp = DISAS_CHAIN;
-    return true;
-}
+//     ctx->base.is_jmp = DISAS_CHAIN;
+//     return true;
+// }
 
 /*
  * Data Transfer Instructions
@@ -1532,15 +1565,15 @@ static void gen_data_load(DisasContext *ctx, TCGv data, TCGv addr)
  *  register Rr is left unchanged, while the destination register Rd is loaded
  *  with a copy of Rr.
  */
-static bool trans_MOV(DisasContext *ctx, arg_MOV *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv Rr = cpu_r[a->rr];
+// static bool trans_MOV(DisasContext *ctx, arg_MOV *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv Rr = cpu_r[a->rr];
 
-    tcg_gen_mov_tl(Rd, Rr);
+//     tcg_gen_mov_tl(Rd, Rr);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  This instruction makes a copy of one register pair into another register
@@ -1549,35 +1582,35 @@ static bool trans_MOV(DisasContext *ctx, arg_MOV *a)
  *  instruction is not available in all devices. Refer to the device specific
  *  instruction set summary.
  */
-static bool trans_MOVW(DisasContext *ctx, arg_MOVW *a)
-{
-    if (!avr_have_feature(ctx, AVR_FEATURE_MOVW)) {
-        return true;
-    }
+// static bool trans_MOVW(DisasContext *ctx, arg_MOVW *a)
+// {
+//     if (!avr_have_feature(ctx, AVR_FEATURE_MOVW)) {
+//         return true;
+//     }
 
-    TCGv RdL = cpu_r[a->rd];
-    TCGv RdH = cpu_r[a->rd + 1];
-    TCGv RrL = cpu_r[a->rr];
-    TCGv RrH = cpu_r[a->rr + 1];
+//     TCGv RdL = cpu_r[a->rd];
+//     TCGv RdH = cpu_r[a->rd + 1];
+//     TCGv RrL = cpu_r[a->rr];
+//     TCGv RrH = cpu_r[a->rr + 1];
 
-    tcg_gen_mov_tl(RdH, RrH);
-    tcg_gen_mov_tl(RdL, RrL);
+//     tcg_gen_mov_tl(RdH, RrH);
+//     tcg_gen_mov_tl(RdL, RrL);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  * Loads an 8 bit constant directly to register 16 to 31.
  */
-static bool trans_LDI(DisasContext *ctx, arg_LDI *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    int imm = a->imm;
+// static bool trans_LDI(DisasContext *ctx, arg_LDI *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     int imm = a->imm;
 
-    tcg_gen_movi_tl(Rd, imm);
+//     tcg_gen_movi_tl(Rd, imm);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  Loads one byte from the data space to a register. For parts with SRAM,
@@ -1591,20 +1624,20 @@ static bool trans_LDI(DisasContext *ctx, arg_LDI *a)
  *  This instruction is not available in all devices. Refer to the device
  *  specific instruction set summary.
  */
-static bool trans_LDS(DisasContext *ctx, arg_LDS *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv addr = tcg_temp_new_i32();
-    TCGv H = cpu_rampD;
-    a->imm = next_word(ctx);
+// static bool trans_LDS(DisasContext *ctx, arg_LDS *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv addr = tcg_temp_new_i32();
+//     TCGv H = cpu_rampD;
+//     a->imm = next_word(ctx);
 
-    tcg_gen_mov_tl(addr, H); /* addr = H:M:L */
-    tcg_gen_shli_tl(addr, addr, 16);
-    tcg_gen_ori_tl(addr, addr, a->imm);
+//     tcg_gen_mov_tl(addr, H); /* addr = H:M:L */
+//     tcg_gen_shli_tl(addr, addr, 16);
+//     tcg_gen_ori_tl(addr, addr, a->imm);
 
-    gen_data_load(ctx, Rd, addr);
-    return true;
-}
+//     gen_data_load(ctx, Rd, addr);
+//     return true;
+// }
 
 /*
  *  Loads one byte indirect from the data space to a register. For parts
@@ -1907,15 +1940,15 @@ static bool trans_STY3(DisasContext *ctx, arg_STY3 *a)
     return true;
 }
 
-static bool trans_STDY(DisasContext *ctx, arg_STDY *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv addr = gen_get_yaddr();
+// static bool trans_STDY(DisasContext *ctx, arg_STDY *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv addr = gen_get_yaddr();
 
-    tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
-    gen_data_store(ctx, Rd, addr);
-    return true;
-}
+//     tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
+//     gen_data_store(ctx, Rd, addr);
+//     return true;
+// }
 
 /*
  * Stores one byte indirect with or without displacement from a register to data
@@ -1964,15 +1997,15 @@ static bool trans_STZ3(DisasContext *ctx, arg_STZ3 *a)
     return true;
 }
 
-static bool trans_STDZ(DisasContext *ctx, arg_STDZ *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv addr = gen_get_zaddr();
+// static bool trans_STDZ(DisasContext *ctx, arg_STDZ *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv addr = gen_get_zaddr();
 
-    tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
-    gen_data_store(ctx, Rd, addr);
-    return true;
-}
+//     tcg_gen_addi_tl(addr, addr, a->imm); /* addr = addr + q */
+//     gen_data_store(ctx, Rd, addr);
+//     return true;
+// }
 
 /*
  *  Loads one byte pointed to by the Z-register into the destination
@@ -2143,27 +2176,27 @@ static bool trans_SPMX(DisasContext *ctx, arg_SPMX *a)
  *  Loads data from the I/O Space (Ports, Timers, Configuration Registers,
  *  etc.) into register Rd in the Register File.
  */
-static bool trans_IN(DisasContext *ctx, arg_IN *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv port = tcg_constant_i32(a->imm);
+// static bool trans_IN(DisasContext *ctx, arg_IN *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv port = tcg_constant_i32(a->imm);
 
-    gen_helper_inb(Rd, cpu_env, port);
-    return true;
-}
+//     gen_helper_inb(Rd, cpu_env, port);
+//     return true;
+// }
 
 /*
  *  Stores data from register Rr in the Register File to I/O Space (Ports,
  *  Timers, Configuration Registers, etc.).
  */
-static bool trans_OUT(DisasContext *ctx, arg_OUT *a)
-{
-    TCGv Rd = cpu_r[a->rd];
-    TCGv port = tcg_constant_i32(a->imm);
+// static bool trans_OUT(DisasContext *ctx, arg_OUT *a)
+// {
+//     TCGv Rd = cpu_r[a->rd];
+//     TCGv port = tcg_constant_i32(a->imm);
 
-    gen_helper_outb(cpu_env, port, Rd);
-    return true;
-}
+//     gen_helper_outb(cpu_env, port, Rd);
+//     return true;
+// }
 
 /*
  *  This instruction stores the contents of register Rr on the STACK. The
@@ -2424,16 +2457,16 @@ static bool trans_SWAP(DisasContext *ctx, arg_SWAP *a)
  *  Sets a specified bit in an I/O Register. This instruction operates on
  *  the lower 32 I/O Registers -- addresses 0-31.
  */
-static bool trans_SBI(DisasContext *ctx, arg_SBI *a)
-{
-    TCGv data = tcg_temp_new_i32();
-    TCGv port = tcg_constant_i32(a->reg);
+// static bool trans_SBI(DisasContext *ctx, arg_SBI *a)
+// {
+//     TCGv data = tcg_temp_new_i32();
+//     TCGv port = tcg_constant_i32(a->reg);
 
-    gen_helper_inb(data, cpu_env, port);
-    tcg_gen_ori_tl(data, data, 1 << a->bit);
-    gen_helper_outb(cpu_env, port, data);
-    return true;
-}
+//     gen_helper_inb(data, cpu_env, port);
+//     tcg_gen_ori_tl(data, data, 1 << a->bit);
+//     gen_helper_outb(cpu_env, port, data);
+//     return true;
+// }
 
 /*
  *  Clears a specified bit in an I/O Register. This instruction operates on
@@ -2605,6 +2638,21 @@ static bool trans_CLD(DisasContext *ctx, arg_CLD *a)
     return true;
 }
 
+static bool trans_TXS(DisasContext *ctx, arg_TXS *a)
+{
+
+    /* NOP */
+
+    return true;
+}
+
+static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
+{
+
+
+    return true;
+}
+
 /*
  *  This instruction sets the circuit in sleep mode defined by the MCU
  *  Control Register.
@@ -2640,7 +2688,7 @@ static bool trans_WDR(DisasContext *ctx, arg_WDR *a)
 static void translate(DisasContext *ctx)
 {
     // uint32_t opcode = next_word(ctx);
-    uint16_t opcode;
+    uint32_t opcode;
     opcode = decode_insn_load(ctx);
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);

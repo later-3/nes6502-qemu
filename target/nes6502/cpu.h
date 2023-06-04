@@ -116,6 +116,7 @@ typedef struct CPUArchState {
     uint32_t pc_w; /* 0x003fffff up to 22 bits */
 
     uint32_t reg_A;
+    uint32_t reg_X;
 
     uint32_t sregC; /* 0x00000001 1 bit */
     uint32_t sregZ; /* 0x00000001 1 bit */

@@ -1,6 +1,6 @@
 gen = [
   decodetree.process('insn.decode', extra_args: [ '--decode', 'decode_insn',
-                                                  '--varinsnwidth', '16' ])
+                                                  '--varinsnwidth', '32' ])
 ]
 
 nes6502_ss = ss.source_set()
