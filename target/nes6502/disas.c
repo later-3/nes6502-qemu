@@ -230,10 +230,10 @@ INSN(XCH,    "Z, r%d", a->rd)
 INSN(LAC,    "Z, r%d", a->rd)
 INSN(LAS,    "Z, r%d", a->rd)
 INSN(LAT,    "Z, r%d", a->rd)
-INSN(LDA,    "%d", a->imm)
-INSN(LDX,    "%d", a->imm)
-INSN(STA,    "%d", a->addr1)
-INSN(LDAAD,    "%d", a->addr1)
+INSN(LDAIM,    "%d", a->imm)
+INSN(LDXIM,    "%d", a->imm)
+INSN(STAAB,    "%d, %d", a->addr1, a->addr2)
+INSN(LDAAD,    "%d, %d", a->addr1, a->addr2)
 
 /*
  * Bit and Bit-test Instructions

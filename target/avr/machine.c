@@ -25,7 +25,7 @@
 static int get_sreg(QEMUFile *f, void *opaque, size_t size,
                     const VMStateField *field)
 {
-    CPUAVRState *env = opaque;
+    CPUNES6502State *env = opaque;
     uint8_t sreg;
 
     sreg = qemu_get_byte(f);
@@ -36,7 +36,7 @@ static int get_sreg(QEMUFile *f, void *opaque, size_t size,
 static int put_sreg(QEMUFile *f, void *opaque, size_t size,
                     const VMStateField *field, JSONWriter *vmdesc)
 {
-    CPUAVRState *env = opaque;
+    CPUNES6502State *env = opaque;
     uint8_t sreg = cpu_get_sreg(env);
 
     qemu_put_byte(f, sreg);
@@ -107,7 +107,7 @@ const VMStateDescription vms_avr_cpu = {
 
         VMSTATE_UINT32_ARRAY(env.r, AVRCPU, NUMBER_OF_CPU_REGISTERS),
 
-        VMSTATE_SINGLE(env, AVRCPU, 0, vms_sreg, CPUAVRState),
+        VMSTATE_SINGLE(env, AVRCPU, 0, vms_sreg, CPUNES6502State),
         VMSTATE_SINGLE(env.rampD, AVRCPU, 0, vms_rampD, uint32_t),
         VMSTATE_SINGLE(env.rampX, AVRCPU, 0, vms_rampX, uint32_t),
         VMSTATE_SINGLE(env.rampY, AVRCPU, 0, vms_rampY, uint32_t),

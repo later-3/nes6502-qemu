@@ -54,6 +54,15 @@ static TCGv cpu_Hf;
 static TCGv cpu_Tf;
 static TCGv cpu_If;
 
+static TCGv cpu_carry_flag;
+static TCGv cpu_zero_flag;
+static TCGv cpu_interrupt_flag;
+static TCGv cpu_decimal_flag;
+static TCGv cpu_break_flag;
+static TCGv cpu_overflow_flag;
+static TCGv cpu_negative_flag;
+static TCGv cpu_stack_point;
+
 static TCGv cpu_rampD;
 static TCGv cpu_rampX;
 static TCGv cpu_rampY;
@@ -83,7 +92,7 @@ typedef struct DisasContext DisasContext;
 struct DisasContext {
     DisasContextBase base;
 
-    CPUAVRState *env;
+    CPUNES6502State *env;
     CPUState *cs;
 
     target_long npc;
@@ -125,7 +134,7 @@ void avr_cpu_tcg_init(void)
 {
     int i;
 
-#define AVR_REG_OFFS(x) offsetof(CPUAVRState, x)
+#define AVR_REG_OFFS(x) offsetof(CPUNES6502State, x)
     cpu_pc = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(pc_w), "pc");
     cpu_Cf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregC), "Cf");
     cpu_Zf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregZ), "Zf");
@@ -143,8 +152,16 @@ void avr_cpu_tcg_init(void)
     cpu_sp = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sp), "sp");
     cpu_skip = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(skip), "skip");
 
-    cpu_A = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_A), "A");
-    cpu_X = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_X), "X");
+    cpu_A = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_A), "reg_A");
+    cpu_X = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_X), "reg_X");
+    cpu_carry_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(carry_flag), "carry_flag");
+    cpu_zero_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(zero_flag), "zero_flag");
+    cpu_interrupt_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(interrupt_flag), "interrupt_flag");
+    cpu_decimal_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(decimal_flag), "decimal_flag");
+    cpu_break_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(break_flag), "break_flag");
+    cpu_overflow_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(overflow_flag), "overflow_flag");
+    cpu_negative_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(negative_flag), "negative_flag");
+    cpu_stack_point = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(stack_point), "stack_point");
 
     for (i = 0; i < NUMBER_OF_CPU_REGISTERS; i++) {
         cpu_r[i] = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(r[i]),
@@ -1100,28 +1117,34 @@ static bool trans_EIJMP(DisasContext *ctx, arg_EIJMP *a)
 //     return true;
 // }
 
-static bool trans_LDA(DisasContext *ctx, arg_LDA *a)
+static bool trans_LDAIM(DisasContext *ctx, arg_LDAIM *a)
 {
     tcg_gen_movi_i32(cpu_A, a->imm);
     return true;
 }
 
-static bool trans_LDX(DisasContext *ctx, arg_LDX *a)
+static bool trans_LDXIM(DisasContext *ctx, arg_LDXIM *a)
 {
     tcg_gen_movi_i32(cpu_X, a->imm);
     return true;
 }
-
-static bool trans_STA(DisasContext *ctx, arg_STA *a)
+static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr);
+static bool trans_STAAB(DisasContext *ctx, arg_STAAB *a)
 {
     // addr2 = next_byte(ctx);
     uint16_t addr;
     addr = a->addr1 | (a->addr2 << 8);
     printf("addr 0x%x\n", addr);
+
+    TCGv Rd = cpu_A;
+    TCGv addr_ = tcg_temp_new_i32();
+    tcg_gen_movi_i32(addr_, addr);
+
+    gen_data_store(ctx, Rd, addr_);
     return true;
 }
 
-static bool trans_LDAAD(DisasContext *ctx, arg_STA *a)
+static bool trans_LDAAD(DisasContext *ctx, arg_LDAAD *a)
 {
     uint16_t addr;
     addr = a->addr1 | (a->addr2 << 8);
@@ -2624,25 +2647,19 @@ static bool trans_NOP(DisasContext *ctx, arg_NOP *a)
 
 static bool trans_SEI(DisasContext *ctx, arg_SEI *a)
 {
-
-    /* NOP */
-
+    tcg_gen_movi_tl(cpu_interrupt_flag, 1);
     return true;
 }
 
 static bool trans_CLD(DisasContext *ctx, arg_CLD *a)
 {
-
-    /* NOP */
-
+    tcg_gen_movi_tl(cpu_decimal_flag, 0);
     return true;
 }
 
 static bool trans_TXS(DisasContext *ctx, arg_TXS *a)
 {
-
-    /* NOP */
-
+    tcg_gen_mov_tl(cpu_stack_point, cpu_A);
     return true;
 }
 
@@ -2740,7 +2757,7 @@ static bool canonicalize_skip(DisasContext *ctx)
 static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUAVRState *env = cs->env_ptr;
+    CPUNES6502State *env = cs->env_ptr;
     uint32_t tb_flags = ctx->base.tb->flags;
 
     ctx->cs = cs;

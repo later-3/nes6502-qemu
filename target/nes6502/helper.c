@@ -29,7 +29,7 @@
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     AVRCPU *cpu = AVR_CPU(cs);
-    CPUAVRState *env = &cpu->env;
+    CPUNES6502State *env = &cpu->env;
 
     /*
      * We cannot separate a skip from the next instruction,
@@ -68,7 +68,7 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 void avr_cpu_do_interrupt(CPUState *cs)
 {
     AVRCPU *cpu = AVR_CPU(cs);
-    CPUAVRState *env = &cpu->env;
+    CPUNES6502State *env = &cpu->env;
 
     uint32_t ret = env->pc_w;
     int vector = 0;
@@ -144,7 +144,7 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                 page_size = 1;
             } else {
                 AVRCPU *cpu = AVR_CPU(cs);
-                CPUAVRState *env = &cpu->env;
+                CPUNES6502State *env = &cpu->env;
                 env->fullacc = 1;
                 cpu_loop_exit_restore(cs, retaddr);
             }
@@ -159,7 +159,7 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
  *  helpers
  */
 
-void helper_sleep(CPUAVRState *env)
+void helper_sleep(CPUNES6502State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -167,7 +167,7 @@ void helper_sleep(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_unsupported(CPUAVRState *env)
+void helper_unsupported(CPUNES6502State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -183,7 +183,7 @@ void helper_unsupported(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_debug(CPUAVRState *env)
+void helper_debug(CPUNES6502State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -191,7 +191,7 @@ void helper_debug(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_break(CPUAVRState *env)
+void helper_break(CPUNES6502State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -199,7 +199,7 @@ void helper_break(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_wdr(CPUAVRState *env)
+void helper_wdr(CPUNES6502State *env)
 {
     qemu_log_mask(LOG_UNIMP, "WDG reset (not implemented)\n");
 }
@@ -214,7 +214,7 @@ void helper_wdr(CPUAVRState *env)
  * c.  it caches the value for sake of SBI, SBIC, SBIS & CBI implementation
  *
  */
-target_ulong helper_inb(CPUAVRState *env, uint32_t port)
+target_ulong helper_inb(CPUNES6502State *env, uint32_t port)
 {
     target_ulong data = 0;
 
@@ -263,7 +263,7 @@ target_ulong helper_inb(CPUAVRState *env, uint32_t port)
  *  c.  it caches the value for sake of SBI, SBIC, SBIS & CBI implementation
  *
  */
-void helper_outb(CPUAVRState *env, uint32_t port, uint32_t data)
+void helper_outb(CPUNES6502State *env, uint32_t port, uint32_t data)
 {
     data &= 0x000000ff;
 
@@ -313,7 +313,7 @@ void helper_outb(CPUAVRState *env, uint32_t port, uint32_t data)
  *  this function implements LD instruction when there is a possibility to read
  *  from a CPU register
  */
-target_ulong helper_fullrd(CPUAVRState *env, uint32_t addr)
+target_ulong helper_fullrd(CPUNES6502State *env, uint32_t addr)
 {
     uint8_t data;
 
@@ -337,7 +337,7 @@ target_ulong helper_fullrd(CPUAVRState *env, uint32_t addr)
  *  this function implements ST instruction when there is a possibility to write
  *  into a CPU register
  */
-void helper_fullwr(CPUAVRState *env, uint32_t data, uint32_t addr)
+void helper_fullwr(CPUNES6502State *env, uint32_t data, uint32_t addr)
 {
     env->fullacc = false;
 

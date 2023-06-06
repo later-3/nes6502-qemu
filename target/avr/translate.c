@@ -80,7 +80,7 @@ typedef struct DisasContext DisasContext;
 struct DisasContext {
     DisasContextBase base;
 
-    CPUAVRState *env;
+    CPUNES6502State *env;
     CPUState *cs;
 
     target_long npc;
@@ -122,7 +122,7 @@ void avr_cpu_tcg_init(void)
 {
     int i;
 
-#define AVR_REG_OFFS(x) offsetof(CPUAVRState, x)
+#define AVR_REG_OFFS(x) offsetof(CPUNES6502State, x)
     cpu_pc = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(pc_w), "pc");
     cpu_Cf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregC), "Cf");
     cpu_Zf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregZ), "Zf");
@@ -2653,7 +2653,7 @@ static bool canonicalize_skip(DisasContext *ctx)
 static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    CPUAVRState *env = cs->env_ptr;
+    CPUNES6502State *env = cs->env_ptr;
     uint32_t tb_flags = ctx->base.tb->flags;
 
     ctx->cs = cs;

@@ -115,9 +115,6 @@ typedef enum AVRFeature {
 typedef struct CPUArchState {
     uint32_t pc_w; /* 0x003fffff up to 22 bits */
 
-    uint32_t reg_A;
-    uint32_t reg_X;
-
     uint32_t sregC; /* 0x00000001 1 bit */
     uint32_t sregZ; /* 0x00000001 1 bit */
     uint32_t sregN; /* 0x00000001 1 bit */
@@ -142,13 +139,26 @@ typedef struct CPUArchState {
     bool fullacc; /* CPU/MEM if true MEM only otherwise */
 
     uint64_t features;
-} CPUAVRState;
+
+    uint32_t reg_A;
+    uint32_t reg_X;
+    uint32_t carry_flag; /* 0x00000001 1 bit */
+    uint32_t zero_flag; /* 0x00000001 1 bit */
+    uint32_t interrupt_flag; /* 0x00000001 1 bit */
+    uint32_t decimal_flag; /* 0x00000001 1 bit */
+    uint32_t break_flag; /* 0x00000001 1 bit */
+    uint32_t unused_flag; /* 0x00000001 1 bit */
+    uint32_t overflow_flag; /* 0x00000001 1 bit */
+    uint32_t negative_flag; /* 0x00000001 1 bit */
+    uint32_t stack_point; /* 16 bits */
+
+} CPUNES6502State;
 
 /**
- *  AVRCPU:
- *  @env: #CPUAVRState
+ *  NES6502CPU:
+ *  @env: #CPUNES6502State
  *
- *  A AVR CPU.
+ *  A NES6502 CPU.
  */
 struct ArchCPU {
     /*< private >*/
@@ -156,7 +166,7 @@ struct ArchCPU {
     /*< public >*/
 
     CPUNegativeOffsetState neg;
-    CPUAVRState env;
+    CPUNES6502State env;
 };
 
 extern const struct VMStateDescription vms_avr_cpu;
@@ -169,12 +179,12 @@ int avr_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int avr_print_insn(bfd_vma addr, disassemble_info *info);
 vaddr avr_cpu_gdb_adjust_breakpoint(CPUState *cpu, vaddr addr);
 
-static inline int avr_feature(CPUAVRState *env, AVRFeature feature)
+static inline int avr_feature(CPUNES6502State *env, AVRFeature feature)
 {
     return (env->features & (1U << feature)) != 0;
 }
 
-static inline void set_avr_feature(CPUAVRState *env, int feature)
+static inline void set_avr_feature(CPUNES6502State *env, int feature)
 {
     env->features |= (1U << feature);
 }
@@ -182,7 +192,7 @@ static inline void set_avr_feature(CPUAVRState *env, int feature)
 #define cpu_list avr_cpu_list
 #define cpu_mmu_index avr_cpu_mmu_index
 
-static inline int avr_cpu_mmu_index(CPUAVRState *env, bool ifetch)
+static inline int avr_cpu_mmu_index(CPUNES6502State *env, bool ifetch)
 {
     return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
 }
@@ -197,7 +207,7 @@ enum {
     TB_FLAGS_SKIP = 2,
 };
 
-static inline void cpu_get_tb_cpu_state(CPUAVRState *env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPUNES6502State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *pflags)
 {
     uint32_t flags = 0;
@@ -215,12 +225,12 @@ static inline void cpu_get_tb_cpu_state(CPUAVRState *env, target_ulong *pc,
     *pflags = flags;
 }
 
-static inline int cpu_interrupts_enabled(CPUAVRState *env)
+static inline int cpu_interrupts_enabled(CPUNES6502State *env)
 {
     return env->sregI != 0;
 }
 
-static inline uint8_t cpu_get_sreg(CPUAVRState *env)
+static inline uint8_t cpu_get_sreg(CPUNES6502State *env)
 {
     return (env->sregC) << 0
          | (env->sregZ) << 1
@@ -232,7 +242,7 @@ static inline uint8_t cpu_get_sreg(CPUAVRState *env)
          | (env->sregI) << 7;
 }
 
-static inline void cpu_set_sreg(CPUAVRState *env, uint8_t sreg)
+static inline void cpu_set_sreg(CPUNES6502State *env, uint8_t sreg)
 {
     env->sregC = (sreg >> 0) & 0x01;
     env->sregZ = (sreg >> 1) & 0x01;
