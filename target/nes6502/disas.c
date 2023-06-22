@@ -187,6 +187,7 @@ INSN(SBIC,   "$%d, %d", a->reg, a->bit)
 INSN(SBIS,   "$%d, %d", a->reg, a->bit)
 // INSN_MNEMONIC(BRBS,  brbs[a->bit], ".%+d", a->imm * 2)
 // INSN_MNEMONIC(BRBC,  brbc[a->bit], ".%+d", a->imm * 2)
+INSN(BPL,    "%d", a->imm8)
 
 /*
  * Data Transfer Instructions
@@ -233,7 +234,7 @@ INSN(LAT,    "Z, r%d", a->rd)
 INSN(LDAIM,    "%d", a->imm)
 INSN(LDXIM,    "%d", a->imm)
 INSN(STAAB,    "%d, %d", a->addr1, a->addr2)
-INSN(LDAAD,    "%d, %d", a->addr1, a->addr2)
+INSN(LDAAB,    "%d, %d", a->addr1, a->addr2)
 
 /*
  * Bit and Bit-test Instructions
@@ -259,4 +260,4 @@ INSN(WDR,    "")
 INSN(SEI,    "")
 INSN(CLD,    "")
 INSN(TXS,    "")
-INSN(BPL,    "")
+

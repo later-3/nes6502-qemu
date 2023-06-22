@@ -164,7 +164,7 @@ LAC             1001 001 rd:5 0110
 LAS             1001 001 rd:5 0101
 LAT             1001 001 rd:5 0111
 LDAIM             1010 1001 imm:8
-LDAAD           1010 1101 addr1:8 addr2:8 
+LDAAB           1010 1101 addr1:8 addr2:8 
 STAAB             1000 1101 addr1:8 addr2:8
 LDXIM             1010 0010 imm:8
 

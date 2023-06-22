@@ -36,7 +36,7 @@ static vaddr avr_cpu_get_pc(CPUState *cs)
 {
     AVRCPU *cpu = AVR_CPU(cs);
 
-    return cpu->env.pc_w * 2;
+    return cpu->env.pc_w;
 }
 
 static bool avr_cpu_has_work(CPUState *cs)

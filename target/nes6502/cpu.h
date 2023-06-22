@@ -210,19 +210,8 @@ enum {
 static inline void cpu_get_tb_cpu_state(CPUNES6502State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *pflags)
 {
-    uint32_t flags = 0;
-
-    *pc = env->pc_w * 2;
+    *pc = env->pc_w;
     *cs_base = 0;
-
-    if (env->fullacc) {
-        flags |= TB_FLAGS_FULL_ACCESS;
-    }
-    if (env->skip) {
-        flags |= TB_FLAGS_SKIP;
-    }
-
-    *pflags = flags;
 }
 
 static inline int cpu_interrupts_enabled(CPUNES6502State *env)

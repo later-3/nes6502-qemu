@@ -8,6 +8,15 @@
         "*.inc": "c",
         "*.idef": "c",
         "nesmcu.h": "c",
-        "unimp.h": "c"
+        "unimp.h": "c",
+        "compare": "c",
+        "cstdint": "c",
+        "array": "c",
+        "bitset": "c",
+        "string_view": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "span": "c",
+        "address-spaces.h": "c"
     }
 }

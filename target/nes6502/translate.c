@@ -30,6 +30,7 @@
 #include "exec/log.h"
 #include "exec/translator.h"
 #include "exec/gen-icount.h"
+#include "exec/address-spaces.h"
 
 /*
  *  Define if you want a BREAK instruction translated to a breakpoint
@@ -223,7 +224,7 @@ static uint32_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
         // uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
         // insn |= b << (16 - i * 8);
 
-        uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
+        uint8_t b = cpu_ldub_code(ctx->env, ctx->base.pc_next++);
         insn |= b << (32 - i * 8);
     }
     return insn;
@@ -1117,18 +1118,40 @@ static bool trans_EIJMP(DisasContext *ctx, arg_EIJMP *a)
 //     return true;
 // }
 
+static void gen_ZN(TCGv R)
+{
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, R, 0); /* Zf = R == 0 */
+    tcg_gen_shri_tl(cpu_negative_flag, R, 7); /* Cf = t1(7) */
+}
+
 static bool trans_LDAIM(DisasContext *ctx, arg_LDAIM *a)
 {
     tcg_gen_movi_i32(cpu_A, a->imm);
+    TCGv R = cpu_A;
+    gen_ZN(R);
     return true;
 }
 
 static bool trans_LDXIM(DisasContext *ctx, arg_LDXIM *a)
 {
     tcg_gen_movi_i32(cpu_X, a->imm);
+    TCGv R = cpu_X;
+    gen_ZN(R);
     return true;
 }
+
 static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr);
+
+static inline void gen_ldu(TCGv reg, TCGv mem)
+{
+    tcg_gen_qemu_ld_i32(reg, mem, 0, MO_TE);
+}
+
+static inline void gen_st(TCGv reg, TCGv mem)
+{
+    tcg_gen_qemu_st_i32(reg, mem, 0, MO_TE);
+}
+
 static bool trans_STAAB(DisasContext *ctx, arg_STAAB *a)
 {
     // addr2 = next_byte(ctx);
@@ -1137,18 +1160,23 @@ static bool trans_STAAB(DisasContext *ctx, arg_STAAB *a)
     printf("addr 0x%x\n", addr);
 
     TCGv Rd = cpu_A;
-    TCGv addr_ = tcg_temp_new_i32();
-    tcg_gen_movi_i32(addr_, addr);
+    TCGv addr_ = tcg_constant_i32(addr);
 
-    gen_data_store(ctx, Rd, addr_);
+    gen_st(Rd, addr_);
+    gen_ZN(Rd);
     return true;
 }
 
-static bool trans_LDAAD(DisasContext *ctx, arg_LDAAD *a)
+static bool trans_LDAAB(DisasContext *ctx, arg_LDAAB *a)
 {
     uint16_t addr;
     addr = a->addr1 | (a->addr2 << 8);
     printf("addr 0x%x\n", addr);
+    TCGv Rd = cpu_A;
+    TCGv addr_ = tcg_constant_i32(addr);
+
+    gen_ldu(Rd, addr_);
+
     return true;
 }
 
@@ -2639,9 +2667,7 @@ static bool trans_BREAK(DisasContext *ctx, arg_BREAK *a)
  */
 static bool trans_NOP(DisasContext *ctx, arg_NOP *a)
 {
-
     /* NOP */
-
     return true;
 }
 
@@ -2659,13 +2685,34 @@ static bool trans_CLD(DisasContext *ctx, arg_CLD *a)
 
 static bool trans_TXS(DisasContext *ctx, arg_TXS *a)
 {
-    tcg_gen_mov_tl(cpu_stack_point, cpu_A);
+    tcg_gen_mov_tl(cpu_stack_point, cpu_X);
     return true;
 }
 
+
 static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
 {
+    TCGLabel *not_taken = gen_new_label();
 
+    TCGv var;
+    var = cpu_negative_flag;
+    tcg_gen_brcondi_i32(TCG_COND_NE, var, 0, not_taken);
+
+    TCGv addr = tcg_temp_new_i32();
+
+    int data = a->imm8;
+    // data = address_space_ldub(&address_space_memory, a->imm8, MEMTXATTRS_UNSPECIFIED, NULL);
+
+    if (data & 0x80)
+        data -= 0x100;
+
+    data += ctx->base.pc_next;
+    tcg_gen_movi_tl(addr, data);
+
+    gen_goto_tb(ctx, 0, data);
+    gen_set_label(not_taken);
+
+    ctx->base.is_jmp = DISAS_CHAIN;
 
     return true;
 }
@@ -2783,71 +2830,19 @@ static void avr_tr_tb_start(DisasContextBase *db, CPUState *cs)
 {
 }
 
-static void avr_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(ctx->npc);
+    tcg_gen_insn_start(ctx->base.pc_next);
 }
 
-static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    TCGLabel *skip_label = NULL;
 
-    /* Conditionally skip the next instruction, if indicated.  */
-    if (ctx->skip_cond != TCG_COND_NEVER) {
-        skip_label = gen_new_label();
-        if (ctx->skip_var0 == cpu_skip) {
-            /*
-             * Copy cpu_skip so that we may zero it before the branch.
-             * This ensures that cpu_skip is non-zero after the label
-             * if and only if the skipped insn itself sets a skip.
-             */
-            ctx->skip_var0 = tcg_temp_new();
-            tcg_gen_mov_tl(ctx->skip_var0, cpu_skip);
-            tcg_gen_movi_tl(cpu_skip, 0);
-        }
-        if (ctx->skip_var1 == NULL) {
-            tcg_gen_brcondi_tl(ctx->skip_cond, ctx->skip_var0, 0, skip_label);
-        } else {
-            tcg_gen_brcond_tl(ctx->skip_cond, ctx->skip_var0,
-                              ctx->skip_var1, skip_label);
-            ctx->skip_var1 = NULL;
-        }
-        ctx->skip_cond = TCG_COND_NEVER;
-        ctx->skip_var0 = NULL;
-    }
-
+    ctx->npc = ctx->base.pc_next;
     translate(ctx);
-
-    ctx->base.pc_next = ctx->npc * 2;
-
-    if (skip_label) {
-        canonicalize_skip(ctx);
-        gen_set_label(skip_label);
-
-        switch (ctx->base.is_jmp) {
-        case DISAS_NORETURN:
-            ctx->base.is_jmp = DISAS_CHAIN;
-            break;
-        case DISAS_NEXT:
-            if (ctx->base.tb->flags & TB_FLAGS_SKIP) {
-                ctx->base.is_jmp = DISAS_TOO_MANY;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (ctx->base.is_jmp == DISAS_NEXT) {
-        target_ulong page_first = ctx->base.pc_first & TARGET_PAGE_MASK;
-
-        if ((ctx->base.pc_next - page_first) >= TARGET_PAGE_SIZE - 4) {
-            ctx->base.is_jmp = DISAS_TOO_MANY;
-        }
-    }
 }
 
 static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
@@ -2898,8 +2893,8 @@ static void avr_tr_disas_log(const DisasContextBase *dcbase,
 static const TranslatorOps avr_tr_ops = {
     .init_disas_context = avr_tr_init_disas_context,
     .tb_start           = avr_tr_tb_start,
-    .insn_start         = avr_tr_insn_start,
-    .translate_insn     = avr_tr_translate_insn,
+    .insn_start         = nes6502_tr_insn_start,
+    .translate_insn     = nes6502_tr_translate_insn,
     .tb_stop            = avr_tr_tb_stop,
     .disas_log          = avr_tr_disas_log,
 };
