@@ -45,6 +45,7 @@ static TCGv cpu_pc;
 
 static TCGv cpu_A;
 static TCGv cpu_X;
+static TCGv cpu_Y;
 
 static TCGv cpu_Cf;
 static TCGv cpu_Zf;
@@ -155,6 +156,8 @@ void avr_cpu_tcg_init(void)
 
     cpu_A = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_A), "reg_A");
     cpu_X = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_X), "reg_X");
+    cpu_Y = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_Y), "reg_Y");
+    
     cpu_carry_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(carry_flag), "carry_flag");
     cpu_zero_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(zero_flag), "zero_flag");
     cpu_interrupt_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(interrupt_flag), "interrupt_flag");
@@ -233,6 +236,12 @@ static uint32_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
 static uint32_t decode_insn_load(DisasContext *ctx);
 static bool decode_insn(DisasContext *ctx, uint32_t insn);
 #include "decode-insn.c.inc"
+
+static void gen_ZN(TCGv R)
+{
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, R, 0); /* Zf = R == 0 */
+    tcg_gen_shri_tl(cpu_negative_flag, R, 7); /* Cf = t1(7) */
+}
 
 /*
  * Arithmetic Instructions
@@ -955,6 +964,36 @@ static bool trans_DES(DisasContext *ctx, arg_DES *a)
     return true;
 }
 
+static bool trans_CMP(DisasContext *ctx, arg_CMP *a)
+{
+    TCGv t1 = tcg_temp_new_i32();
+    tcg_gen_subi_i32(t1, cpu_A, a->imm8);
+
+    tcg_gen_setcondi_tl(TCG_COND_GE, cpu_carry_flag, t1, 0);
+    gen_ZN(t1);
+    return true;
+}
+
+static bool trans_DEX(DisasContext *ctx, arg_DEX *a)
+{
+    TCGv r = cpu_X;
+
+    tcg_gen_subi_tl(r, r, 1);
+    gen_ZN(r);
+
+    return true;
+}
+
+static bool trans_DEY(DisasContext *ctx, arg_DEY *a)
+{
+    TCGv r = cpu_Y;
+
+    tcg_gen_subi_tl(r, r, 1);
+    gen_ZN(r);
+
+    return true;
+}
+
 /*
  * Branch Instructions
  */
@@ -1039,14 +1078,14 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
  *  instruction can address the entire memory from every address location. See
  *  also JMP.
  */
-static bool trans_RJMP(DisasContext *ctx, arg_RJMP *a)
-{
-    int dst = ctx->npc + a->imm;
+// static bool trans_RJMP(DisasContext *ctx, arg_RJMP *a)
+// {
+//     int dst = ctx->npc + a->imm;
 
-    gen_goto_tb(ctx, 0, dst);
+//     gen_goto_tb(ctx, 0, dst);
 
-    return true;
-}
+//     return true;
+// }
 
 /*
  *  Indirect jump to the address pointed to by the Z (16 bits) Pointer
@@ -1118,11 +1157,6 @@ static bool trans_EIJMP(DisasContext *ctx, arg_EIJMP *a)
 //     return true;
 // }
 
-static void gen_ZN(TCGv R)
-{
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, R, 0); /* Zf = R == 0 */
-    tcg_gen_shri_tl(cpu_negative_flag, R, 7); /* Cf = t1(7) */
-}
 
 static bool trans_LDAIM(DisasContext *ctx, arg_LDAIM *a)
 {
@@ -1136,6 +1170,14 @@ static bool trans_LDXIM(DisasContext *ctx, arg_LDXIM *a)
 {
     tcg_gen_movi_i32(cpu_X, a->imm);
     TCGv R = cpu_X;
+    gen_ZN(R);
+    return true;
+}
+
+static bool trans_LDYIM(DisasContext *ctx, arg_LDYIM *a)
+{
+    tcg_gen_movi_i32(cpu_Y, a->imm8);
+    TCGv R = cpu_Y;
     gen_ZN(R);
     return true;
 }
@@ -1176,7 +1218,21 @@ static bool trans_LDAAB(DisasContext *ctx, arg_LDAAB *a)
     TCGv addr_ = tcg_constant_i32(addr);
 
     gen_ldu(Rd, addr_);
+    gen_ZN(Rd);
+    return true;
+}
 
+static bool trans_LDAABX(DisasContext *ctx, arg_LDAABX *a)
+{
+    uint16_t addr;
+    addr = (a->addr1 | (a->addr2 << 8));
+    printf("trans_LDAABX addr 0x%x\n", addr);
+    TCGv Rd = cpu_A;
+    TCGv addr_ = tcg_temp_new_i32();
+    tcg_gen_addi_tl(addr_, cpu_X, addr);
+
+    gen_ldu(Rd, addr_);
+    gen_ZN(Rd);
     return true;
 }
 
@@ -2689,18 +2745,15 @@ static bool trans_TXS(DisasContext *ctx, arg_TXS *a)
     return true;
 }
 
-
-static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
+static void branch_on_res(DisasContext *ctx, int imm8, TCGv var, TCGCond cond, int val)
 {
     TCGLabel *not_taken = gen_new_label();
 
-    TCGv var;
-    var = cpu_negative_flag;
-    tcg_gen_brcondi_i32(TCG_COND_NE, var, 0, not_taken);
+    tcg_gen_brcondi_i32(cond, var, val, not_taken);
 
     TCGv addr = tcg_temp_new_i32();
 
-    int data = a->imm8;
+    int data = imm8;
     // data = address_space_ldub(&address_space_memory, a->imm8, MEMTXATTRS_UNSPECIFIED, NULL);
 
     if (data & 0x80)
@@ -2713,7 +2766,46 @@ static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
     gen_set_label(not_taken);
 
     ctx->base.is_jmp = DISAS_CHAIN;
+}
 
+static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
+{
+    branch_on_res(ctx, a->imm8, cpu_negative_flag, TCG_COND_NE, 0);
+    return true;
+}
+
+static bool trans_BCSC(DisasContext *ctx, arg_BCSC *a)
+{
+    branch_on_res(ctx, a->imm8, cpu_carry_flag, TCG_COND_EQ, 1);
+    return true;
+}
+
+static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
+{
+    branch_on_res(ctx, a->imm8, cpu_zero_flag, TCG_COND_EQ, 0);
+    return true;
+}
+
+static bool trans_JSR(DisasContext *ctx, arg_JSR *a)
+{
+    uint16_t addr;
+    addr = (a->addr1 | (a->addr2 << 8));
+    printf("trans_JSR addr 0x%x\n", addr);
+// tcg_gen_mov_tl
+
+    TCGv sp = tcg_temp_new_i32();
+    tcg_gen_addi_tl(sp, cpu_stack_point, 0xFF);
+
+    TCGv pc = tcg_temp_new_i32();
+    tcg_gen_andi_tl(pc, cpu_pc, 0xFF);
+    tcg_gen_qemu_st_i32(pc, cpu_stack_point, 0, MO_TE);
+
+    tcg_gen_addi_tl(sp, cpu_stack_point, 1);
+    tcg_gen_andi_tl(pc, cpu_pc, 0xFF00);
+    tcg_gen_shri_tl(pc, pc, 8);
+    tcg_gen_qemu_st_i32(pc, cpu_stack_point, 0, MO_TE);
+
+    tcg_gen_subi_tl(cpu_stack_point, cpu_stack_point, 2);
     return true;
 }
 
@@ -2805,25 +2897,10 @@ static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUNES6502State *env = cs->env_ptr;
-    uint32_t tb_flags = ctx->base.tb->flags;
 
     ctx->cs = cs;
     ctx->env = env;
-    ctx->npc = ctx->base.pc_first / 2;
-
-    ctx->skip_cond = TCG_COND_NEVER;
-    if (tb_flags & TB_FLAGS_SKIP) {
-        ctx->skip_cond = TCG_COND_ALWAYS;
-        ctx->skip_var0 = cpu_skip;
-    }
-
-    if (tb_flags & TB_FLAGS_FULL_ACCESS) {
-        /*
-         * This flag is set by ST/LD instruction we will regenerate it ONLY
-         * with mem/cpu memory access instead of mem access
-         */
-        ctx->base.max_insns = 1;
-    }
+    ctx->npc = ctx->base.pc_first;
 }
 
 static void avr_tr_tb_start(DisasContextBase *db, CPUState *cs)
@@ -2862,12 +2939,7 @@ static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_NEXT:
     case DISAS_TOO_MANY:
     case DISAS_CHAIN:
-        if (!nonconst_skip && !force_exit) {
-            /* Note gen_goto_tb checks singlestep.  */
-            gen_goto_tb(ctx, 1, ctx->npc);
-            break;
-        }
-        tcg_gen_movi_tl(cpu_pc, ctx->npc);
+        tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
         /* fall through */
     case DISAS_LOOKUP:
         if (!force_exit) {

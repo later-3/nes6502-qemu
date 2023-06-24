@@ -102,6 +102,7 @@ static void avr_cpu_reset_hold(Object *obj)
 
     env->reg_A = 0;
     env->reg_X = 0;
+    env->reg_Y = 0;
     env->stack_point = 0;
 }
 

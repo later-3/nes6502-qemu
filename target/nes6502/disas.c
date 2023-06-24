@@ -163,11 +163,14 @@ INSN(DEC,    "r%d", a->rd)
 // INSN(FMULS,  "r%d, r%d", a->rd, a->rr)
 // INSN(FMULSU, "r%d, r%d", a->rd, a->rr)
 INSN(DES,    "%d", a->imm)
+INSN(CMP,    "%d", a->imm8)
+INSN(DEX,    "")
+INSN(DEY,    "")
 
 /*
  * Branch Instructions
  */
-INSN(RJMP,   ".%+d", a->imm * 2)
+// INSN(RJMP,   ".%+d", a->imm * 2)
 INSN(IJMP,   "")
 INSN(EIJMP,  "")
 // INSN(JMP,    "0x%x", a->imm * 2)
@@ -188,6 +191,9 @@ INSN(SBIS,   "$%d, %d", a->reg, a->bit)
 // INSN_MNEMONIC(BRBS,  brbs[a->bit], ".%+d", a->imm * 2)
 // INSN_MNEMONIC(BRBC,  brbc[a->bit], ".%+d", a->imm * 2)
 INSN(BPL,    "%d", a->imm8)
+INSN(BCSC,    "%d", a->imm8)
+INSN(BNE,    "%d", a->imm8)
+INSN(JSR,    "%d, %d", a->addr1, a->addr2)
 
 /*
  * Data Transfer Instructions
@@ -233,8 +239,12 @@ INSN(LAS,    "Z, r%d", a->rd)
 INSN(LAT,    "Z, r%d", a->rd)
 INSN(LDAIM,    "%d", a->imm)
 INSN(LDXIM,    "%d", a->imm)
+INSN(LDYIM,    "%d", a->imm8)
 INSN(STAAB,    "%d, %d", a->addr1, a->addr2)
 INSN(LDAAB,    "%d, %d", a->addr1, a->addr2)
+INSN(LDAABX,    "%d, %d", a->addr1, a->addr2)
+
+
 
 /*
  * Bit and Bit-test Instructions
