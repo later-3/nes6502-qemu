@@ -8,6 +8,9 @@
         "*.inc": "c",
         "*.idef": "c",
         "nesmcu.h": "c",
-        "unimp.h": "c"
+        "unimp.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }

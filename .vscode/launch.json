@@ -15,7 +15,7 @@
                 // "-M", "gdbsim-r5f562n8",
                 "-nographic",
                 // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
-                "-bios","/root/Code/super_mario_bros.nes",
+                "-bios","/home/later/code/super_mario_bros.nes",
                 // "-serial","mon:stdio",
                 // "-serial","tcp::5678,server=on,wait=off",
                 // "-bios", "/root/Code/u-boot.bin",

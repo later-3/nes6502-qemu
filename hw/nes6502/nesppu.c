@@ -17,22 +17,11 @@
  *  -- implement BAUD-rate and modem lines, for when the backend
  *     is a real serial device.
  */
-
-#include "qemu/osdep.h"
-#include "hw/char/imx_serial.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
-#include "migration/vmstate.h"
-#include "qemu/log.h"
-#include "qemu/module.h"
+#include "nesppu.h"
 
 #ifndef DEBUG_IMX_UART
 #define DEBUG_IMX_UART 0
 #endif
-
-#define TYPE_NES_PPU "nes ppu" 
-OBJECT_DECLARE_SIMPLE_TYPE(PPUState, NES_PPU)
 
 #define DPRINTF(fmt, args...) \
     do { \
@@ -42,13 +31,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PPUState, NES_PPU)
         } \
     } while (0)
 
-struct PPUState {
-    /*< private >*/
-    SysBusDevice parent_obj;
 
-    /*< public >*/
-    MemoryRegion iomem;
-};
 
 static uint64_t ppu_read(void *opaque, hwaddr offset,
                                 unsigned size)
@@ -59,7 +42,7 @@ static uint64_t ppu_read(void *opaque, hwaddr offset,
 static void ppu_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
-    
+    printf("ppu write\n");
 }
 
 static const struct MemoryRegionOps ppu_ops = {
@@ -79,7 +62,7 @@ static void ppu_init(Object *obj)
     PPUState *s = NES_PPU(obj);
 
     memory_region_init_io(&s->iomem, obj, &ppu_ops, s,
-                          TYPE_NES_PPU, 0x1000);
+                          TYPE_NES_PPU, 0x4000);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
@@ -92,7 +75,7 @@ static void ppu_class_init(ObjectClass *klass, void *data)
 }
 static const TypeInfo nes_ppu_info = {
     .name           = TYPE_NES_PPU,
-    .parent         = TYPE_BUS,
+    .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(PPUState),
     .instance_init  = ppu_init,
     .class_init     = ppu_class_init,

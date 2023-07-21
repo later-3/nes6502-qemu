@@ -222,6 +222,11 @@ static void atmega_realize(DeviceState *dev, Error **errp)
 
     /* PPU RAM*/
 
+    /* PPU controller*/
+    object_initialize_child(OBJECT(dev), "ppu", &s->ppu, TYPE_NES_PPU);
+    sysbus_realize(SYS_BUS_DEVICE(&s->ppu), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu), 0, 0x2000);
+
     /* Flash */
     memory_region_init_rom(&s->flash, OBJECT(dev),
                            "flash", mc->flash_size, &error_fatal);

@@ -17,6 +17,7 @@
 #include "target/nes6502/cpu.h"
 #include "qom/object.h"
 #include "qemu/units.h"
+#include "nesppu.h"
 
 #define TYPE_NES6502_MCU     "nesmcu"
 #define TYPE_ATMEGA168_MCU  "ATmega168"
@@ -53,6 +54,7 @@ struct NesMcuState {
 
     int mmc_prg_pages_number;
     int mmc_chr_pages_number;
+    struct PPUState ppu;
 };
 
 #endif /* HW_AVR_ATMEGA_H */
