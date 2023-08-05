@@ -45,6 +45,7 @@ static TCGv cpu_pc;
 
 static TCGv cpu_A;
 static TCGv cpu_X;
+static TCGv cpu_Y;
 
 static TCGv cpu_Cf;
 static TCGv cpu_Zf;
@@ -63,6 +64,8 @@ static TCGv cpu_break_flag;
 static TCGv cpu_overflow_flag;
 static TCGv cpu_negative_flag;
 static TCGv cpu_stack_point;
+static TCGv op_address;
+static TCGv op_value;
 
 static TCGv cpu_rampD;
 static TCGv cpu_rampX;
@@ -83,9 +86,9 @@ static const char reg_names[NUMBER_OF_CPU_REGISTERS][8] = {
 };
 #define REG(x) (cpu_r[x])
 
-#define DISAS_EXIT   DISAS_TARGET_0  /* We want return to the cpu main loop.  */
-#define DISAS_LOOKUP DISAS_TARGET_1  /* We have a variable condition exit.  */
-#define DISAS_CHAIN  DISAS_TARGET_2  /* We have a single condition exit.  */
+#define DISAS_JUMP    DISAS_TARGET_0
+#define DISAS_UPDATE  DISAS_TARGET_1
+#define DISAS_EXIT    DISAS_TARGET_2
 
 typedef struct DisasContext DisasContext;
 
@@ -102,30 +105,6 @@ struct DisasContext {
     /* Routine used to access memory */
     int memidx;
 
-    /*
-     * some AVR instructions can make the following instruction to be skipped
-     * Let's name those instructions
-     *     A   - instruction that can skip the next one
-     *     B   - instruction that can be skipped. this depends on execution of A
-     * there are two scenarios
-     * 1. A and B belong to the same translation block
-     * 2. A is the last instruction in the translation block and B is the last
-     *
-     * following variables are used to simplify the skipping logic, they are
-     * used in the following manner (sketch)
-     *
-     * TCGLabel *skip_label = NULL;
-     * if (ctx->skip_cond != TCG_COND_NEVER) {
-     *     skip_label = gen_new_label();
-     *     tcg_gen_brcond_tl(skip_cond, skip_var0, skip_var1, skip_label);
-     * }
-     *
-     * translate(ctx);
-     *
-     * if (skip_label) {
-     *     gen_set_label(skip_label);
-     * }
-     */
     TCGv skip_var0;
     TCGv skip_var1;
     TCGCond skip_cond;
@@ -135,40 +114,43 @@ void avr_cpu_tcg_init(void)
 {
     int i;
 
-#define AVR_REG_OFFS(x) offsetof(CPUNES6502State, x)
-    cpu_pc = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(pc_w), "pc");
-    cpu_Cf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregC), "Cf");
-    cpu_Zf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregZ), "Zf");
-    cpu_Nf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregN), "Nf");
-    cpu_Vf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregV), "Vf");
-    cpu_Sf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregS), "Sf");
-    cpu_Hf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregH), "Hf");
-    cpu_Tf = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregT), "Tf");
-    cpu_If = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sregI), "If");
-    cpu_rampD = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(rampD), "rampD");
-    cpu_rampX = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(rampX), "rampX");
-    cpu_rampY = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(rampY), "rampY");
-    cpu_rampZ = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(rampZ), "rampZ");
-    cpu_eind = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(eind), "eind");
-    cpu_sp = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(sp), "sp");
-    cpu_skip = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(skip), "skip");
+#define NES6502_REG_OFFS(x) offsetof(CPUNES6502State, x)
+    cpu_pc = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(pc_w), "pc");
+    cpu_Cf = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregC), "Cf");
+    cpu_Zf = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregZ), "Zf");
+    cpu_Nf = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregN), "Nf");
+    cpu_Vf = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregV), "Vf");
+    cpu_Sf = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregS), "Sf");
+    cpu_Hf = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregH), "Hf");
+    cpu_Tf = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregT), "Tf");
+    cpu_If = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sregI), "If");
+    cpu_rampD = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(rampD), "rampD");
+    cpu_rampX = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(rampX), "rampX");
+    cpu_rampY = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(rampY), "rampY");
+    cpu_rampZ = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(rampZ), "rampZ");
+    cpu_eind = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(eind), "eind");
+    cpu_sp = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(sp), "sp");
+    cpu_skip = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(skip), "skip");
 
-    cpu_A = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_A), "reg_A");
-    cpu_X = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(reg_X), "reg_X");
-    cpu_carry_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(carry_flag), "carry_flag");
-    cpu_zero_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(zero_flag), "zero_flag");
-    cpu_interrupt_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(interrupt_flag), "interrupt_flag");
-    cpu_decimal_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(decimal_flag), "decimal_flag");
-    cpu_break_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(break_flag), "break_flag");
-    cpu_overflow_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(overflow_flag), "overflow_flag");
-    cpu_negative_flag = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(negative_flag), "negative_flag");
-    cpu_stack_point = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(stack_point), "stack_point");
+    cpu_A = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(reg_A), "reg_A");
+    cpu_X = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(reg_X), "reg_X");
+    cpu_Y = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(reg_X), "reg_Y");
+    cpu_carry_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(carry_flag), "carry_flag");
+    cpu_zero_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(zero_flag), "zero_flag");
+    cpu_interrupt_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(interrupt_flag), "interrupt_flag");
+    cpu_decimal_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(decimal_flag), "decimal_flag");
+    cpu_break_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(break_flag), "break_flag");
+    cpu_overflow_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(overflow_flag), "overflow_flag");
+    cpu_negative_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(negative_flag), "negative_flag");
+    cpu_stack_point = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(stack_point), "stack_point");
+    cpu_stack_point = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(stack_point), "op_address");
+    cpu_stack_point = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(stack_point), "op_value");
 
     for (i = 0; i < NUMBER_OF_CPU_REGISTERS; i++) {
-        cpu_r[i] = tcg_global_mem_new_i32(cpu_env, AVR_REG_OFFS(r[i]),
+        cpu_r[i] = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(r[i]),
                                           reg_names[i]);
     }
-#undef AVR_REG_OFFS
+#undef NES6502_REG_OFFS
 }
 
 /* decoder helper */
@@ -176,9 +158,6 @@ static uint32_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
                            int i, int n)
 {
     while (++i <= n) {
-        // uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
-        // insn |= b << (16 - i * 8);
-
         uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
         insn |= b << (32 - i * 8);
     }
@@ -189,87 +168,321 @@ static uint32_t decode_insn_load(DisasContext *ctx);
 static bool decode_insn(DisasContext *ctx, uint32_t insn);
 #include "decode-insn.c.inc"
 
+// CPU Addressing Modes
+static void cpu_address_zero_page(uint8_t addr)
+{
+    tcg_gen_movi_tl(op_address, addr);
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+static void cpu_address_zero_page_x(uint8_t imm)
+{
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_addi_tl(tmp, cpu_X, imm);
+    tcg_gen_andi_tl(op_address, tmp, 0xFF);
+
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+static void cpu_address_zero_page_y(uint8_t imm)
+{
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_addi_tl(tmp, cpu_Y, imm);
+    tcg_gen_andi_tl(op_address, tmp, 0xFF);
+
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+static void cpu_address_absolute(uint16_t addr)
+{
+    tcg_gen_movi_tl(op_address, addr);
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+static void cpu_address_absolute_x(uint16_t addr)
+{
+    tcg_gen_addi_tl(op_address, cpu_X, addr);
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+static void cpu_address_absolute_y(uint16_t addr)
+{
+    tcg_gen_addi_tl(op_address, cpu_Y, addr);
+    tcg_gen_andi_tl(op_address, op_address, 0xFFFF);
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+static void cpu_address_relative(uint8_t imm)
+{
+    int addr = imm;
+    if (addr & 0x80)
+        addr -= 0x100;
+    tcg_gen_movi_tl(op_address, imm);
+    tcg_gen_add_tl(op_address, op_address, cpu_pc);
+}
+
+static void cpu_address_indirect(uint8_t addr)
+{
+    if ((addr & 0xFF) == 0xFF) {
+        // Buggy code
+        addr &= 0xFF00;
+        TCGv tmp = tcg_temp_new();
+        tcg_gen_movi_tl(tmp, addr);
+        tcg_gen_qemu_ld_tl(tmp, tmp, 0, MO_UB);
+        tcg_gen_shli_tl(tmp, tmp, 8);
+        tcg_gen_qemu_ld_tl(op_address, addr, 0, MO_UB);
+        tcg_gen_add_tl(op_address, op_address, tmp);
+    }
+    else {
+        // Normal code
+        tcg_gen_movi_tl(op_address, addr);
+        tcg_gen_qemu_ld_tl(op_address, op_address, 0, MO_UW);
+    }
+}
+
+static void cpu_address_indirect_x(uint8_t imm)
+{
+
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_movi_tl(tmp, imm);
+
+    tcg_gen_add_tl(tmp, tmp, cpu_X);
+    TCGv addr2 = tcg_temp_new();
+
+    tcg_gen_andi_tl(addr2, tmp, 0xFF);
+    tcg_gen_qemu_ld_tl(addr2, tmp, 0, MO_UB);
+
+
+    tcg_gen_addi_tl(tmp, tmp, 1);
+    TCGv addr1 = tcg_temp_new();
+
+    tcg_gen_andi_tl(addr1, tmp, 0xFF);
+    tcg_gen_qemu_ld_tl(addr1, tmp, 0, MO_UB);
+    tcg_gen_shli_tl(addr1, addr1, 8);
+
+    tcg_gen_or_tl(op_address, addr1, addr2);
+
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+
+static void cpu_address_indirect_y(uint8_t imm)
+{
+
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_movi_tl(tmp, imm);
+
+    TCGv addr2 = tcg_temp_new();
+    tcg_gen_qemu_ld_tl(addr2, tmp, 0, MO_UB);
+
+    tcg_gen_addi_tl(tmp, tmp, 1);
+    TCGv addr1 = tcg_temp_new();
+    tcg_gen_andi_tl(addr1, tmp, 0xFF);
+    tcg_gen_qemu_ld_tl(addr1, tmp, 0, MO_UB);
+    tcg_gen_shli_tl(addr1, addr1, 8);
+
+    tcg_gen_or_tl(op_address, addr1, addr2);
+    tcg_gen_add_tl(op_address, op_address, cpu_Y);
+    tcg_gen_andi_tl(op_address, op_address, 0xFFFF);
+
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+}
+
+static void cpu_flag_set(TCGv flag, TCGv res, int value)
+{
+    tcg_gen_setcondi_tl(TCG_COND_EQ, res, flag, value);
+}
+
+static void cpu_modify_flag(TCGv flag, TCGv res)
+{
+    tcg_gen_setcondi_tl(TCG_COND_EQ, flag, res, 1);
+}
+
+static void cpu_update_zn_flags(TCGv r)
+{
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, r, 0);
+    tcg_gen_setcondi_tl(TCG_COND_GE, cpu_negative_flag, r, 127);
+}
+
 /*
  * Arithmetic Instructions
  */
 
+static void trans_ADC_common(void)
+{
+    TCGv res = tcg_temp_new();
+    cpu_flag_set(cpu_carry_flag, res, 1);
+
+    TCGv r = tcg_temp_new();
+    tcg_gen_add_tl(r, cpu_A, op_value);
+    tcg_gen_add_tl(r, r, res);
+
+    TCGv t = tcg_temp_new();
+    tcg_gen_andi_tl(t, r, 0x100);
+    tcg_gen_not_tl(t, t);
+    tcg_gen_not_tl(t, t);
+    cpu_modify_flag(cpu_carry_flag, t);
+    
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+
+    tcg_gen_xor_tl(t1, cpu_A, op_value);
+    tcg_gen_xor_tl(t2, cpu_A, r);
+
+    TCGv t3 = tcg_temp_new();
+    tcg_gen_andc_tl(t3, t2, t1);
+    tcg_gen_andi_tl(t3, t3, 0x80);
+    tcg_gen_not_tl(t3, t3);
+    tcg_gen_not_tl(t3, t3);
+    
+    cpu_modify_flag(cpu_overflow_flag, t3);
+
+    tcg_gen_andi_tl(cpu_A, r, 0xFF);
+    cpu_update_zn_flags(cpu_A);
+}
+
 static bool trans_ADC_IM(DisasContext *ctx, arg_ADC_IM *a)
 {
+    tcg_gen_movi_tl(op_value, a->imm);
+    trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ZEROPAGE(DisasContext *ctx, arg_ADC_ZEROPAGE *a)
 {
+    cpu_address_zero_page(a->imm);
+    trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ZEROPAGE_X(DisasContext *ctx, arg_ADC_ZEROPAGE_X *a)
 {
+    cpu_address_zero_page(a->imm);
+    trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ABSOLUTE(DisasContext *ctx, arg_ADC_ABSOLUTE *a)
 {
+    cpu_address_absolute(a->addr1 << 8 | a->addr2);
+    trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ABSOLUTE_X(DisasContext *ctx, arg_ADC_ABSOLUTE_X *a)
 {
+    cpu_address_absolute_x(a->addr1 << 8 | a->addr2);
+    trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ABSOLUTE_Y(DisasContext *ctx, arg_ADC_ABSOLUTE_Y *a)
 {
+    cpu_address_absolute_y(a->addr1 << 8 | a->addr2);
+    trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_INDIRECT_X(DisasContext *ctx, arg_ADC_INDIRECT_X *a)
 {
+    cpu_address_indirect_x(a->imm);
+    trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_INDIRECT_Y(DisasContext *ctx, arg_ADC_INDIRECT_Y *a)
 {
+    cpu_address_indirect_y(a->imm);
+    trans_ADC_common();
     return true;
 }
 
+static void trans_SBC_common(void)
+{
+    TCGv res = tcg_temp_new();
+    cpu_flag_set(cpu_carry_flag, res, 0);
+
+    TCGv r = tcg_temp_new();
+    tcg_gen_sub_tl(r, cpu_A, op_value);
+    tcg_gen_sub_tl(r, r, res);
+
+    TCGv t = tcg_temp_new();
+    tcg_gen_andi_tl(t, r, 0x100);
+    tcg_gen_not_tl(t, t);
+    cpu_modify_flag(cpu_carry_flag, t);
+    
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+
+    tcg_gen_xor_tl(t1, cpu_A, op_value);
+    tcg_gen_xor_tl(t2, cpu_A, r);
+
+    TCGv t3 = tcg_temp_new();
+    tcg_gen_and_tl(t3, t2, t1);
+    tcg_gen_andi_tl(t3, t3, 0x80);
+    tcg_gen_not_tl(t3, t3);
+    tcg_gen_not_tl(t3, t3);
+    
+    cpu_modify_flag(cpu_overflow_flag, t3);
+
+    tcg_gen_andi_tl(cpu_A, r, 0xFF);
+    cpu_update_zn_flags(cpu_A);
+}
+
+
 static bool trans_SBC_IM(DisasContext *ctx, arg_SBC_IM *a)
 {
+    tcg_gen_movi_tl(op_value, a->imm);
+    trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_ZEROPAGE(DisasContext *ctx, arg_SBC_ZEROPAGE *a)
 {
+    cpu_address_zero_page(a->imm);
+    trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_ZEROPAGE_X(DisasContext *ctx, arg_SBC_ZEROPAGE_X *a)
 {
+    cpu_address_zero_page_x(a->imm);
+    trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_ABSOLUTE(DisasContext *ctx, arg_SBC_ABSOLUTE *a)
 {
+    cpu_address_absolute( (a->addr1 << 8) | a->addr2);
+    trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_ABSOLUTE_X(DisasContext *ctx, arg_SBC_ABSOLUTE_X *a)
 {
+    cpu_address_absolute_x( (a->addr1 << 8) | a->addr2);
+    trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_ABSOLUTE_Y(DisasContext *ctx, arg_SBC_ABSOLUTE_Y *a)
 {
+    cpu_address_absolute_x( (a->addr1 << 8) | a->addr2);
+    trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_INDIRECT_X(DisasContext *ctx, arg_SBC_INDIRECT_X *a)
 {
+    cpu_address_indirect_x(a->imm);
+    trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_INDIRECT_Y(DisasContext *ctx, arg_SBC_INDIRECT_Y *a)
 {
+    cpu_address_indirect_y(a->imm);
+    trans_SBC_common();
     return true;
 }
 
@@ -278,48 +491,115 @@ static bool trans_SBC_INDIRECT_Y(DisasContext *ctx, arg_SBC_INDIRECT_Y *a)
  * Branch Instructions
  */
 
+
+static void cpu_branch(DisasContext *ctx, TCGCond cond, TCGv value, int arg, uint8_t addr)
+{
+    TCGLabel *t, *done;
+
+    t = gen_new_label();
+    done = gen_new_label();
+    tcg_gen_brcondi_i32(cond, value, arg, t);
+    gen_goto_tb(ctx, 0, ctx->base.pc_next);
+    tcg_gen_br(done);
+    gen_set_label(t);
+    gen_goto_tb(ctx, 1, ctx->npc + addr);
+    gen_set_label(done);
+}
+
 static bool trans_BCC(DisasContext *ctx, arg_BCC *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_carry_flag, tmp, 0);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
 
 static bool trans_BCS(DisasContext *ctx, arg_BCS *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_carry_flag, tmp, 1);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
 
 static bool trans_BEQ(DisasContext *ctx, arg_BEQ *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_zero_flag, tmp, 1);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm); 
     return true;
 }
 
 static bool trans_BMI(DisasContext *ctx, arg_BMI *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_negative_flag, tmp, 1);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
 
 static bool trans_BVS(DisasContext *ctx, arg_BVS *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_overflow_flag, tmp, 1);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
 
 static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_zero_flag, tmp, 0);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
 
 static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_negative_flag, tmp, 0);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
 
 static bool trans_BVC(DisasContext *ctx, arg_BVC *a)
 {
+    cpu_address_relative(a->imm);
+
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_overflow_flag, tmp, 0);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
 
 static bool trans_JMP_ABSOLUTE(DisasContext *ctx, arg_JMP_ABSOLUTE *a)
 {
+    cpu_address_absolute( (a->addr1 << 8) | a->addr2);
+
+    tcg_gen_mov_i32(cpu_pc, op_address);
+    ctx->base.is_jmp = DISAS_JUMP;
     return true;
 }
 
@@ -1106,7 +1386,7 @@ static bool canonicalize_skip(DisasContext *ctx)
     return true;
 }
 
-static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUNES6502State *env = cs->env_ptr;
@@ -1114,7 +1394,7 @@ static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     ctx->cs = cs;
     ctx->env = env;
-    ctx->npc = ctx->base.pc_first / 2;
+    ctx->npc = ctx->base.pc_first;
 
     ctx->skip_cond = TCG_COND_NEVER;
     if (tb_flags & TB_FLAGS_SKIP) {
@@ -1131,81 +1411,30 @@ static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void avr_tr_tb_start(DisasContextBase *db, CPUState *cs)
+static void nes6502_tr_tb_start(DisasContextBase *db, CPUState *cs)
 {
 }
 
-static void avr_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     tcg_gen_insn_start(ctx->npc);
 }
 
-static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    TCGLabel *skip_label = NULL;
-
-    /* Conditionally skip the next instruction, if indicated.  */
-    if (ctx->skip_cond != TCG_COND_NEVER) {
-        skip_label = gen_new_label();
-        if (ctx->skip_var0 == cpu_skip) {
-            /*
-             * Copy cpu_skip so that we may zero it before the branch.
-             * This ensures that cpu_skip is non-zero after the label
-             * if and only if the skipped insn itself sets a skip.
-             */
-            ctx->skip_var0 = tcg_temp_new();
-            tcg_gen_mov_tl(ctx->skip_var0, cpu_skip);
-            tcg_gen_movi_tl(cpu_skip, 0);
-        }
-        if (ctx->skip_var1 == NULL) {
-            tcg_gen_brcondi_tl(ctx->skip_cond, ctx->skip_var0, 0, skip_label);
-        } else {
-            tcg_gen_brcond_tl(ctx->skip_cond, ctx->skip_var0,
-                              ctx->skip_var1, skip_label);
-            ctx->skip_var1 = NULL;
-        }
-        ctx->skip_cond = TCG_COND_NEVER;
-        ctx->skip_var0 = NULL;
-    }
 
     translate(ctx);
 
-    ctx->base.pc_next = ctx->npc * 2;
+    ctx->base.pc_next = ctx->npc;
 
-    if (skip_label) {
-        canonicalize_skip(ctx);
-        gen_set_label(skip_label);
-
-        switch (ctx->base.is_jmp) {
-        case DISAS_NORETURN:
-            ctx->base.is_jmp = DISAS_CHAIN;
-            break;
-        case DISAS_NEXT:
-            if (ctx->base.tb->flags & TB_FLAGS_SKIP) {
-                ctx->base.is_jmp = DISAS_TOO_MANY;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (ctx->base.is_jmp == DISAS_NEXT) {
-        target_ulong page_first = ctx->base.pc_first & TARGET_PAGE_MASK;
-
-        if ((ctx->base.pc_next - page_first) >= TARGET_PAGE_SIZE - 4) {
-            ctx->base.is_jmp = DISAS_TOO_MANY;
-        }
-    }
 }
 
-static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
+static void nes6502_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    bool nonconst_skip = canonicalize_skip(ctx);
     /*
      * Because we disable interrupts while env->skip is set,
      * we must return to the main loop to re-evaluate afterward.
@@ -1214,24 +1443,14 @@ static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 
     switch (ctx->base.is_jmp) {
     case DISAS_NORETURN:
-        assert(!nonconst_skip);
         break;
     case DISAS_NEXT:
     case DISAS_TOO_MANY:
-    case DISAS_CHAIN:
-        if (!nonconst_skip && !force_exit) {
-            /* Note gen_goto_tb checks singlestep.  */
-            gen_goto_tb(ctx, 1, ctx->npc);
-            break;
-        }
-        tcg_gen_movi_tl(cpu_pc, ctx->npc);
-        /* fall through */
-    case DISAS_LOOKUP:
-        if (!force_exit) {
-            tcg_gen_lookup_and_goto_ptr();
-            break;
-        }
-        /* fall through */
+        gen_goto_tb(ctx, 0, dcbase->pc_next);
+        break;
+    case DISAS_JUMP:
+        tcg_gen_lookup_and_goto_ptr();
+        break;
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
         break;
@@ -1240,7 +1459,7 @@ static void avr_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void avr_tr_disas_log(const DisasContextBase *dcbase,
+static void nes6502_tr_disas_log(const DisasContextBase *dcbase,
                              CPUState *cs, FILE *logfile)
 {
     fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
@@ -1248,12 +1467,12 @@ static void avr_tr_disas_log(const DisasContextBase *dcbase,
 }
 
 static const TranslatorOps avr_tr_ops = {
-    .init_disas_context = avr_tr_init_disas_context,
-    .tb_start           = avr_tr_tb_start,
-    .insn_start         = avr_tr_insn_start,
-    .translate_insn     = avr_tr_translate_insn,
-    .tb_stop            = avr_tr_tb_stop,
-    .disas_log          = avr_tr_disas_log,
+    .init_disas_context = nes6502_tr_init_disas_context,
+    .tb_start           = nes6502_tr_tb_start,
+    .insn_start         = nes6502_tr_insn_start,
+    .translate_insn     = nes6502_tr_translate_insn,
+    .tb_stop            = nes6502_tr_tb_stop,
+    .disas_log          = nes6502_tr_disas_log,
 };
 
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,

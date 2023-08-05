@@ -142,6 +142,7 @@ typedef struct CPUArchState {
 
     uint32_t reg_A;
     uint32_t reg_X;
+    uint32_t reg_Y;
     uint32_t carry_flag; /* 0x00000001 1 bit */
     uint32_t zero_flag; /* 0x00000001 1 bit */
     uint32_t interrupt_flag; /* 0x00000001 1 bit */
@@ -152,6 +153,8 @@ typedef struct CPUArchState {
     uint32_t negative_flag; /* 0x00000001 1 bit */
     uint32_t stack_point; /* 16 bits */
 
+    uint32_t op_address;
+    uint32_t op_value;
 } CPUNES6502State;
 
 /**
