@@ -151,6 +151,7 @@ typedef struct CPUArchState {
     uint32_t unused_flag; /* 0x00000001 1 bit */
     uint32_t overflow_flag; /* 0x00000001 1 bit */
     uint32_t negative_flag; /* 0x00000001 1 bit */
+    uint32_t P;
     uint32_t stack_point; /* 16 bits */
 
     uint32_t op_address;

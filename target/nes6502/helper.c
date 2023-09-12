@@ -26,6 +26,43 @@
 #include "exec/address-spaces.h"
 #include "exec/helper-proto.h"
 
+
+uint32_t helper_psw_read(CPUNES6502State *env)
+{
+    uint32_t p = 0;
+    p |= env->carry_flag;
+    p |= env->zero_flag << 1;
+    p |= env->interrupt_flag << 2;
+    p |= env->decimal_flag << 3;
+    p |= env->break_flag << 4;
+    p |= env->unused_flag << 5;
+    p |= env->overflow_flag << 6;
+    p |= env->negative_flag << 7;
+    env->P = p;
+    return p;
+}
+
+void helper_psw_write(CPUNES6502State *env, uint32_t val)
+{
+    // carry_bp      = 0,
+    // zero_bp       = 1,
+    // interrupt_bp  = 2,
+    // decimal_bp    = 3,
+    // break_bp      = 4,
+    // unused_bp     = 5,
+    // overflow_bp   = 6,
+    // negative_bp   = 7
+    env->carry_flag = val & 0x1;
+    env->zero_flag = val & 0x2;
+    env->interrupt_flag = val & 0x4;
+    env->decimal_flag = val & 0x8;
+    env->break_flag = val & 0x10;
+    env->unused_flag = val & 0x20;
+    env->overflow_flag = val & 0x40;
+    env->negative_flag = val & 0x80;
+    env->P = val & 0xFF;
+}
+
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     AVRCPU *cpu = AVR_CPU(cs);

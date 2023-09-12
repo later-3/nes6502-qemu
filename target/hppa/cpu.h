@@ -312,7 +312,7 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
     *pflags = flags;
 }
 
-target_ureg cpu_hppa_get_psw(CPUHPPAState *env);
+target_ureg cpu_hppa_(CPUHPPAState *env);
 void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg);
 void cpu_hppa_loaded_fr0(CPUHPPAState *env);
 
