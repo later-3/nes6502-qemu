@@ -31,6 +31,7 @@
 #include "exec/translator.h"
 #include "exec/gen-icount.h"
 #include "exec/address-spaces.h"
+#include "litenes_cpu.h"
 
 /*
  *  Define if you want a BREAK instruction translated to a breakpoint
@@ -369,21 +370,21 @@ static bool trans_ADC_ZEROPAGE_X(DisasContext *ctx, arg_ADC_ZEROPAGE_X *a)
 
 static bool trans_ADC_ABSOLUTE(DisasContext *ctx, arg_ADC_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1 << 8 | a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ABSOLUTE_X(DisasContext *ctx, arg_ADC_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1 << 8 | a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ABSOLUTE_Y(DisasContext *ctx, arg_ADC_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y(a->addr1 << 8 | a->addr2);
+    cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
     trans_ADC_common();
     return true;
 }
@@ -458,21 +459,21 @@ static bool trans_SBC_ZEROPAGE_X(DisasContext *ctx, arg_SBC_ZEROPAGE_X *a)
 
 static bool trans_SBC_ABSOLUTE(DisasContext *ctx, arg_SBC_ABSOLUTE *a)
 {
-    cpu_address_absolute( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute( a->addr2 <<8 | a->addr1);
     trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_ABSOLUTE_X(DisasContext *ctx, arg_SBC_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute_x( a->addr2 <<8 | a->addr1);
     trans_SBC_common();
     return true;
 }
 
 static bool trans_SBC_ABSOLUTE_Y(DisasContext *ctx, arg_SBC_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_x( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute_x( a->addr2 <<8 | a->addr1);
     trans_SBC_common();
     return true;
 }
@@ -615,7 +616,7 @@ static bool trans_BVC(DisasContext *ctx, arg_BVC *a)
 
 static bool trans_JMP_ABSOLUTE(DisasContext *ctx, arg_JMP_ABSOLUTE *a)
 {
-    cpu_address_absolute( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute( a->addr2 <<8 | a->addr1);
 
     tcg_gen_mov_i32(cpu_pc, op_address);
     ctx->base.is_jmp = DISAS_JUMP;
@@ -624,7 +625,7 @@ static bool trans_JMP_ABSOLUTE(DisasContext *ctx, arg_JMP_ABSOLUTE *a)
 
 static bool trans_JMP_INDIRECT(DisasContext *ctx, arg_JMP_INDIRECT *a)
 {
-    cpu_address_indirect( (a->addr1 << 8) | a->addr2);
+    cpu_address_indirect( a->addr2 <<8 | a->addr1);
 
     tcg_gen_mov_i32(cpu_pc, op_address);
     ctx->base.is_jmp = DISAS_JUMP;
@@ -633,7 +634,7 @@ static bool trans_JMP_INDIRECT(DisasContext *ctx, arg_JMP_INDIRECT *a)
 
 static bool trans_JSR_ABSOLUTE(DisasContext *ctx, arg_JSR_ABSOLUTE *a)
 {
-    cpu_address_absolute( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute( a->addr2 <<8 | a->addr1);
 
     tcg_gen_mov_i32(cpu_pc, op_address);
     ctx->base.is_jmp = DISAS_JUMP;
@@ -765,6 +766,7 @@ static bool trans_RTI(DisasContext *ctx, arg_RTI *a)
 static bool trans_LDA_IM(DisasContext *ctx, arg_LDA_IM *a)
 {
     tcg_gen_movi_i32(cpu_A, a->imm);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
@@ -772,6 +774,7 @@ static bool trans_LDA_ZEROPAGE(DisasContext *ctx, arg_LDA_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_A, op_value);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
@@ -779,27 +782,31 @@ static bool trans_LDA_ZEROPAGE_X(DisasContext *ctx, arg_LDA_ZEROPAGE_X *a)
 {
     cpu_address_zero_page_x(a->imm);
     tcg_gen_mov_tl(cpu_A, op_value);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
 static bool trans_LDA_ABSOLUTE(DisasContext *ctx, arg_LDA_ABSOLUTE *a)
 {
-    cpu_address_absolute( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute( a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_A, op_value);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
 static bool trans_LDA_ABSOLUTE_X(DisasContext *ctx, arg_LDA_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute_x( a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_A, op_value);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
 static bool trans_LDA_ABSOLUTE_Y(DisasContext *ctx, arg_LDA_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y( (a->addr1 << 8) | a->addr2);
+    cpu_address_absolute_y( a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_A, op_value);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
@@ -807,6 +814,7 @@ static bool trans_LDA_INDIRECT_X(DisasContext *ctx, arg_LDA_INDIRECT_X *a)
 {
     cpu_address_indirect_x(a->imm);
     tcg_gen_mov_tl(cpu_A, op_value);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
@@ -814,6 +822,7 @@ static bool trans_LDA_INDIRECT_Y(DisasContext *ctx, arg_LDA_INDIRECT_Y *a)
 {
     cpu_address_indirect_y(a->imm);
     tcg_gen_mov_tl(cpu_A, op_value);
+    cpu_update_zn_flags(cpu_A);
     return true;
 }
 
@@ -821,6 +830,7 @@ static bool trans_LDA_INDIRECT_Y(DisasContext *ctx, arg_LDA_INDIRECT_Y *a)
 static bool trans_LDX_IM(DisasContext *ctx, arg_LDX_IM *a)
 {
     tcg_gen_movi_i32(cpu_X, a->imm);
+    cpu_update_zn_flags(cpu_X);
     return true;
 }
 
@@ -828,6 +838,7 @@ static bool trans_LDX_ZEROPAGE(DisasContext *ctx, arg_LDX_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_X, op_value);
+    cpu_update_zn_flags(cpu_X);
     return true;
 }
 
@@ -835,26 +846,30 @@ static bool trans_LDX_ZEROPAGE_Y(DisasContext *ctx, arg_LDX_ZEROPAGE_Y *a)
 {
     cpu_address_zero_page_y(a->imm);
     tcg_gen_mov_tl(cpu_X, op_value);
+    cpu_update_zn_flags(cpu_X);
     return true;
 }
 
 static bool trans_LDX_ABSOLUTE(DisasContext *ctx, arg_LDX_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1 << 8 | a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_X, op_value);
+    cpu_update_zn_flags(cpu_X);
     return true;
 }
 
 static bool trans_LDX_ABSOLUTE_Y(DisasContext *ctx, arg_LDX_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y(a->addr1 << 8 | a->addr2);
+    cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_X, op_value);
+    cpu_update_zn_flags(cpu_X);
     return true;
 }
 
 static bool trans_LDY_IM(DisasContext *ctx, arg_LDY_IM *a)
 {
-    tcg_gen_movi_i32(cpu_A, a->imm);
+    tcg_gen_movi_i32(cpu_Y, a->imm);
+    cpu_update_zn_flags(cpu_Y);
     return true;
 }
 
@@ -862,6 +877,7 @@ static bool trans_LDY_ZEROPAGE(DisasContext *ctx, arg_LDY_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_Y, op_value);
+    cpu_update_zn_flags(cpu_Y);
     return true;
 }
 
@@ -869,20 +885,23 @@ static bool trans_LDY_ZEROPAGE_X(DisasContext *ctx, arg_LDY_ZEROPAGE_X *a)
 {
     cpu_address_zero_page_x(a->imm);
     tcg_gen_mov_tl(cpu_Y, op_value);
+    cpu_update_zn_flags(cpu_Y);
     return true;
 }
 
 static bool trans_LDY_ABSOLUTE(DisasContext *ctx, arg_LDY_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1 << 8| a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_Y, op_value);
+    cpu_update_zn_flags(cpu_Y);
     return true;
 }
 
 static bool trans_LDY_ABSOLUTE_X(DisasContext *ctx, arg_LDY_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1 << 8| a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_Y, op_value);
+    cpu_update_zn_flags(cpu_Y);
  
     return true;
 }
@@ -904,7 +923,7 @@ static bool trans_STA_ZEROPAGE_X(DisasContext *ctx, arg_STA_ZEROPAGE_X *a)
 
 static bool trans_STA_ABSOLUTE(DisasContext *ctx, arg_STA_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1 <<8 | a->addr2);
+    cpu_address_absolute(a->addr2 << 8 | a->addr1);
 
     tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
     return true;
@@ -912,14 +931,14 @@ static bool trans_STA_ABSOLUTE(DisasContext *ctx, arg_STA_ABSOLUTE *a)
 
 static bool trans_STA_ABSOLUTE_X(DisasContext *ctx, arg_STA_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1 << 8| a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
     return true;
 }
 
 static bool trans_STA_ABSOLUTE_Y(DisasContext *ctx, arg_STA_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y(a->addr1 << 8| a->addr2);
+    cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
     tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
 
     return true;
@@ -957,7 +976,7 @@ static bool trans_STX_ZEROPAGE_Y(DisasContext *ctx, arg_STX_ZEROPAGE_Y *a)
 
 static bool trans_STX_ABSOLUTE(DisasContext *ctx, arg_STX_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_qemu_st_tl(cpu_X, op_address, 0, MO_UB);
     return true;
 }
@@ -979,7 +998,7 @@ static bool trans_STY_ZEROPAGE_X(DisasContext *ctx, arg_STY_ZEROPAGE_X *a)
 
 static bool trans_STY_ABSOLUTE(DisasContext *ctx, arg_STY_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1 << 8 | a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_qemu_st_tl(cpu_Y, op_address, 0, MO_UB);
     return true;
 }
@@ -1052,21 +1071,21 @@ static bool trans_AND_ZEROPAGE_X(DisasContext *ctx, arg_AND_ZEROPAGE_X *a)
 
 static bool trans_AND_ABSOLUTE(DisasContext *ctx, arg_AND_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1 << 8| a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_and_tl(cpu_A, cpu_A, op_value);
     return true;
 }
 
 static bool trans_AND_ABSOLUTE_X(DisasContext *ctx, arg_AND_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1 << 8| a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     tcg_gen_and_tl(cpu_A, cpu_A, op_value);
     return true;
 }
 
 static bool trans_AND_ABSOLUTE_Y(DisasContext *ctx, arg_AND_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y(a->addr1 << 8| a->addr2);
+    cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
     tcg_gen_and_tl(cpu_A, cpu_A, op_value);
     return true;
 }
@@ -1112,7 +1131,7 @@ static bool trans_EOR_ZEROPAGE_X(DisasContext *ctx, arg_EOR_ZEROPAGE_X *a)
 
 static bool trans_EOR_ABSOLUTE(DisasContext *ctx, arg_EOR_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_xor_tl(cpu_A, cpu_A, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
@@ -1120,7 +1139,7 @@ static bool trans_EOR_ABSOLUTE(DisasContext *ctx, arg_EOR_ABSOLUTE *a)
 
 static bool trans_EOR_ABSOLUTE_X(DisasContext *ctx, arg_EOR_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     tcg_gen_xor_tl(cpu_A, cpu_A, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
@@ -1128,7 +1147,7 @@ static bool trans_EOR_ABSOLUTE_X(DisasContext *ctx, arg_EOR_ABSOLUTE_X *a)
 
 static bool trans_EOR_ABSOLUTE_Y(DisasContext *ctx, arg_EOR_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y(a->addr1<<8|a->addr2);
+    cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
     tcg_gen_xor_tl(cpu_A, cpu_A, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
@@ -1176,7 +1195,7 @@ static bool trans_ORA_ZEROPAGE_X(DisasContext *ctx, arg_ORA_ZEROPAGE_X *a)
 
 static bool trans_ORA_ABSOLUTE(DisasContext *ctx, arg_ORA_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1 << 8| a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_or_tl(cpu_A, cpu_A, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
@@ -1184,7 +1203,7 @@ static bool trans_ORA_ABSOLUTE(DisasContext *ctx, arg_ORA_ABSOLUTE *a)
 
 static bool trans_ORA_ABSOLUTE_X(DisasContext *ctx, arg_ORA_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1 << 8| a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     tcg_gen_or_tl(cpu_A, cpu_A, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
@@ -1192,7 +1211,7 @@ static bool trans_ORA_ABSOLUTE_X(DisasContext *ctx, arg_ORA_ABSOLUTE_X *a)
 
 static bool trans_ORA_ABSOLUTE_Y(DisasContext *ctx, arg_ORA_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y(a->addr1 << 8| a->addr2);
+    cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
     tcg_gen_or_tl(cpu_A, cpu_A, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
@@ -1255,14 +1274,14 @@ static bool trans_ASL_ZEROPAGE_X(DisasContext *ctx, arg_ASL_ZEROPAGE_X *a)
 
 static bool trans_ASL_ABSOLUTE(DisasContext *ctx, arg_ASL_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     asl_common();
     return true;
 }
 
 static bool trans_ASL_ABSOLUTE_X(DisasContext *ctx, arg_ASL_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     asl_common();
     return true;
 }
@@ -1311,14 +1330,14 @@ static bool trans_LSR_ZEROPAGE_X(DisasContext *ctx, arg_LSR_ZEROPAGE_X *a)
 
 static bool trans_LSR_ABSOLUTE(DisasContext *ctx, arg_LSR_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     lsr_common();
     return true;
 }
 
 static bool trans_LSR_ABSOLUTE_X(DisasContext *ctx, arg_LSR_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     lsr_common();
     return true;
 }
@@ -1376,14 +1395,14 @@ static bool trans_ROL_ZEROPAGE_X(DisasContext *ctx, arg_ROL_ZEROPAGE_X *a)
 
 static bool trans_ROL_ABSOLUTE(DisasContext *ctx, arg_ROL_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     rol_common();
     return true;
 }
 
 static bool trans_ROL_ABSOLUTE_X(DisasContext *ctx, arg_ROL_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     rol_common();
     return true;
 }
@@ -1467,14 +1486,14 @@ static bool trans_ROR_ZEROPAGE_X(DisasContext *ctx, arg_ROR_ZEROPAGE_X *a)
 
 static bool trans_ROR_ABSOLUTE(DisasContext *ctx, arg_ROR_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     ror_common();
     return true;
 }
 
 static bool trans_ROR_ABSOLUTE_X(DisasContext *ctx, arg_ROR_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     ror_common();
     return true;
 }
@@ -1584,21 +1603,21 @@ static bool trans_CMP_ZEROPAGE_X(DisasContext *ctx, arg_CMP_ZEROPAGE_X *a)
 
 static bool trans_CMP_ABSOLUTE(DisasContext *ctx, arg_CMP_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     cpu_compare(cpu_A);
     return true;
 }
 
 static bool trans_CMP_ABSOLUTE_X(DisasContext *ctx, arg_CMP_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     cpu_compare(cpu_A);
     return true;
 }
 
 static bool trans_CMP_ABSOLUTE_Y(DisasContext *ctx, arg_CMP_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_y(a->addr1<<8|a->addr2);
+    cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
     cpu_compare(cpu_A);
     return true;
 }
@@ -1634,7 +1653,7 @@ static bool trans_CPX_ZEROPAGE(DisasContext *ctx, arg_CPX_ZEROPAGE *a)
 
 static bool trans_CPX_ABSOLUTE(DisasContext *ctx, arg_CPX_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     cpu_compare(cpu_X);
     return true;
 }
@@ -1657,7 +1676,7 @@ static bool trans_CPY_ZEROPAGE(DisasContext *ctx, arg_CPY_ZEROPAGE *a)
 
 static bool trans_CPY_ABSOLUTE(DisasContext *ctx, arg_CPY_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     cpu_compare(cpu_Y);
     return true;
 }
@@ -1695,14 +1714,14 @@ static bool trans_INC_ZEROPAGE_X(DisasContext *ctx, arg_INC_ZEROPAGE_X *a)
 
 static bool trans_INC_ABSOLUTE(DisasContext *ctx, arg_INC_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     inc_common();
     return true;
 }
 
 static bool trans_INC_ABSOLUTE_X(DisasContext *ctx, arg_INC_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     inc_common();
     return true;
 }
@@ -1757,7 +1776,7 @@ static bool trans_DEC_ZEROPAGE_X(DisasContext *ctx, arg_DEC_ZEROPAGE_X *a)
 
 static bool trans_DEC_ABSOLUTE(DisasContext *ctx, arg_DEC_ABSOLUTE *a)
 {
-    cpu_address_absolute(a->addr1<<8|a->addr2);
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
     dec_common();
 
     return true;
@@ -1765,7 +1784,7 @@ static bool trans_DEC_ABSOLUTE(DisasContext *ctx, arg_DEC_ABSOLUTE *a)
 
 static bool trans_DEC_ABSOLUTE_X(DisasContext *ctx, arg_DEC_ABSOLUTE_X *a)
 {
-    cpu_address_absolute_x(a->addr1<<8|a->addr2);
+    cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
     dec_common();
 
     return true;
@@ -1850,6 +1869,8 @@ static void translate(DisasContext *ctx)
     // uint32_t opcode = next_word(ctx);
     uint32_t opcode;
     opcode = decode_insn_load(ctx);
+    uint16_t op = opcode >> 24;
+    printf("opcode 0x%x %s\n", op, cpu_op_name[op]);
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);
         ctx->base.is_jmp = DISAS_NORETURN;

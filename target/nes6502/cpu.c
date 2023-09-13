@@ -36,7 +36,7 @@ static vaddr avr_cpu_get_pc(CPUState *cs)
 {
     AVRCPU *cpu = AVR_CPU(cs);
 
-    return cpu->env.pc_w * 2;
+    return cpu->env.pc_w;
 }
 
 static bool avr_cpu_has_work(CPUState *cs)
@@ -55,7 +55,7 @@ static void avr_cpu_synchronize_from_tb(CPUState *cs,
     CPUNES6502State *env = &cpu->env;
 
     tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
-    env->pc_w = tb->pc / 2; /* internally PC points to words */
+    env->pc_w = tb->pc; /* internally PC points to words */
 }
 
 static void avr_restore_state_to_opc(CPUState *cs,

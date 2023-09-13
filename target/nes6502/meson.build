@@ -12,7 +12,8 @@ nes6502_ss.add(files(
   'helper.c',
   'cpu.c',
   'gdbstub.c',
-  'disas.c'))
+  'disas.c',
+  'litenes_cpu.c'))
 
 nes6502_softmmu_ss.add(files('machine.c'))
 
