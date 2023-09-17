@@ -24,18 +24,18 @@
 #include "hw/core/cpu.h"
 #include "qom/object.h"
 
-#define TYPE_AVR_CPU "avr-cpu"
+#define TYPE_NES6502_CPU "nes6502-cpu"
 
-OBJECT_DECLARE_CPU_TYPE(AVRCPU, AVRCPUClass, AVR_CPU)
+OBJECT_DECLARE_CPU_TYPE(NES6502CPU, NES6502CPUClass, NES6502_CPU)
 
 /**
- *  AVRCPUClass:
+ *  NES6502CPUClass:
  *  @parent_realize: The parent class' realize handler.
  *  @parent_phases: The parent class' reset phase handlers.
  *
- *  A AVR CPU model.
+ *  A 6502 CPU model.
  */
-struct AVRCPUClass {
+struct NES6502CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/

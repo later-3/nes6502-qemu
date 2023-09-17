@@ -28,7 +28,7 @@
  *
  * Returns: true on success, false on error.
  */
-bool nes6502_load_firmware(AVRCPU *cpu, NesMcuState *s,
+bool nes6502_load_firmware(NES6502CPU *cpu, NesMcuState *s,
                        MemoryRegion *mr, const char *firmware);
 
 #endif

@@ -1,7 +1,7 @@
 /*
- * QEMU AVR CPU
+ * QEMU NES6502 CPU
  *
- * Copyright (c) 2016-2020 Michael Rolnik
+ * Copyright (c) 2023- Joey
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,8 +18,8 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
-#ifndef QEMU_AVR_CPU_H
-#define QEMU_AVR_CPU_H
+#ifndef QEMU_NES6502_CPU_H
+#define QEMU_NES6502_CPU_H
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
@@ -28,9 +28,9 @@
 #error "AVR 8-bit does not support user mode"
 #endif
 
-#define AVR_CPU_TYPE_SUFFIX "-" TYPE_AVR_CPU
-#define AVR_CPU_TYPE_NAME(name) (name AVR_CPU_TYPE_SUFFIX)
-#define CPU_RESOLVING_TYPE TYPE_AVR_CPU
+#define NES6502_CPU_TYPE_SUFFIX "-" TYPE_NES6502_CPU
+#define NES6502_CPU_TYPE_NAME(name) (name NES6502_CPU_TYPE_SUFFIX)
+#define CPU_RESOLVING_TYPE TYPE_NES6502_CPU
 
 #define TCG_GUEST_DEFAULT_MO 0
 
@@ -75,42 +75,6 @@
  * mapped peripherals, mapped just after CPU registers
  */
 #define OFFSET_IO_REGISTERS (OFFSET_DATA + NUMBER_OF_CPU_REGISTERS)
-
-typedef enum AVRFeature {
-    AVR_FEATURE_SRAM,
-
-    AVR_FEATURE_1_BYTE_PC,
-    AVR_FEATURE_2_BYTE_PC,
-    AVR_FEATURE_3_BYTE_PC,
-
-    AVR_FEATURE_1_BYTE_SP,
-    AVR_FEATURE_2_BYTE_SP,
-
-    AVR_FEATURE_BREAK,
-    AVR_FEATURE_DES,
-    AVR_FEATURE_RMW, /* Read Modify Write - XCH LAC LAS LAT */
-
-    AVR_FEATURE_EIJMP_EICALL,
-    AVR_FEATURE_IJMP_ICALL,
-    AVR_FEATURE_JMP_CALL,
-
-    AVR_FEATURE_ADIW_SBIW,
-
-    AVR_FEATURE_SPM,
-    AVR_FEATURE_SPMX,
-
-    AVR_FEATURE_ELPMX,
-    AVR_FEATURE_ELPM,
-    AVR_FEATURE_LPMX,
-    AVR_FEATURE_LPM,
-
-    AVR_FEATURE_MOVW,
-    AVR_FEATURE_MUL,
-    AVR_FEATURE_RAMPD,
-    AVR_FEATURE_RAMPX,
-    AVR_FEATURE_RAMPY,
-    AVR_FEATURE_RAMPZ,
-} AVRFeature;
 
 typedef struct CPUArchState {
     uint32_t pc_w; /* 0x003fffff up to 22 bits */
@@ -183,17 +147,7 @@ int avr_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int avr_print_insn(bfd_vma addr, disassemble_info *info);
 vaddr avr_cpu_gdb_adjust_breakpoint(CPUState *cpu, vaddr addr);
 
-static inline int avr_feature(CPUNES6502State *env, AVRFeature feature)
-{
-    return (env->features & (1U << feature)) != 0;
-}
-
-static inline void set_avr_feature(CPUNES6502State *env, int feature)
-{
-    env->features |= (1U << feature);
-}
-
-#define cpu_list avr_cpu_list
+#define cpu_list nes6502_cpu_list
 #define cpu_mmu_index avr_cpu_mmu_index
 
 static inline int avr_cpu_mmu_index(CPUNES6502State *env, bool ifetch)
@@ -201,10 +155,9 @@ static inline int avr_cpu_mmu_index(CPUNES6502State *env, bool ifetch)
     return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
 }
 
-void avr_cpu_tcg_init(void);
+void nes6502_cpu_tcg_init(void);
 
-void avr_cpu_list(void);
-int cpu_avr_exec(CPUState *cpu);
+void nes6502_cpu_list(void);
 
 enum {
     TB_FLAGS_FULL_ACCESS = 1,
@@ -264,4 +217,4 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 #include "exec/cpu-all.h"
 
-#endif /* QEMU_AVR_CPU_H */
+#endif /* QEMU_NES6502_CPU_H */

@@ -23,7 +23,7 @@
 
 int avr_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
     /*  R */
@@ -53,7 +53,7 @@ int avr_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
 int avr_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
     /*  R */

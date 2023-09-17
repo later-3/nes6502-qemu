@@ -20,10 +20,6 @@
 #include "nesppu.h"
 
 #define TYPE_NES6502_MCU     "nesmcu"
-#define TYPE_ATMEGA168_MCU  "ATmega168"
-#define TYPE_ATMEGA328_MCU  "ATmega328"
-#define TYPE_ATMEGA1280_MCU "ATmega1280"
-#define TYPE_ATMEGA2560_MCU "ATmega2560"
 
 typedef struct NesMcuState NesMcuState;
 DECLARE_INSTANCE_CHECKER(NesMcuState, NES6502_MCU,
@@ -41,10 +37,10 @@ struct NesMcuState {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    AVRCPU cpu;
+    NES6502CPU cpu;
     MemoryRegion flash;
     MemoryRegion eeprom;
-    MemoryRegion work_ram;
+    MemoryRegion cpu_ram;
     MemoryRegion chr_ram;
     DeviceState *io;
     AVRMaskState pwr[POWER_MAX];

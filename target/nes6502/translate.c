@@ -114,7 +114,7 @@ struct DisasContext {
     TCGCond skip_cond;
 };
 
-void avr_cpu_tcg_init(void)
+void nes6502_cpu_tcg_init(void)
 {
     int i;
 

@@ -101,18 +101,18 @@ const VMStateDescription vms_avr_cpu = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(env.pc_w, AVRCPU),
-        VMSTATE_UINT32(env.sp, AVRCPU),
-        VMSTATE_UINT32(env.skip, AVRCPU),
+        VMSTATE_UINT32(env.pc_w, NES6502CPU),
+        VMSTATE_UINT32(env.sp, NES6502CPU),
+        VMSTATE_UINT32(env.skip, NES6502CPU),
 
-        VMSTATE_UINT32_ARRAY(env.r, AVRCPU, NUMBER_OF_CPU_REGISTERS),
+        VMSTATE_UINT32_ARRAY(env.r, NES6502CPU, NUMBER_OF_CPU_REGISTERS),
 
-        VMSTATE_SINGLE(env, AVRCPU, 0, vms_sreg, CPUNES6502State),
-        VMSTATE_SINGLE(env.rampD, AVRCPU, 0, vms_rampD, uint32_t),
-        VMSTATE_SINGLE(env.rampX, AVRCPU, 0, vms_rampX, uint32_t),
-        VMSTATE_SINGLE(env.rampY, AVRCPU, 0, vms_rampY, uint32_t),
-        VMSTATE_SINGLE(env.rampZ, AVRCPU, 0, vms_rampZ, uint32_t),
-        VMSTATE_SINGLE(env.eind, AVRCPU, 0, vms_eind, uint32_t),
+        VMSTATE_SINGLE(env, NES6502CPU, 0, vms_sreg, CPUNES6502State),
+        VMSTATE_SINGLE(env.rampD, NES6502CPU, 0, vms_rampD, uint32_t),
+        VMSTATE_SINGLE(env.rampX, NES6502CPU, 0, vms_rampX, uint32_t),
+        VMSTATE_SINGLE(env.rampY, NES6502CPU, 0, vms_rampY, uint32_t),
+        VMSTATE_SINGLE(env.rampZ, NES6502CPU, 0, vms_rampZ, uint32_t),
+        VMSTATE_SINGLE(env.eind, NES6502CPU, 0, vms_eind, uint32_t),
 
         VMSTATE_END_OF_LIST()
     }

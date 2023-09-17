@@ -65,7 +65,7 @@ void helper_psw_write(CPUNES6502State *env, uint32_t val)
 
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
     /*
@@ -104,32 +104,12 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
 void avr_cpu_do_interrupt(CPUState *cs)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
-    uint32_t ret = env->pc_w;
     int vector = 0;
-    int size = avr_feature(env, AVR_FEATURE_JMP_CALL) ? 2 : 1;
     int base = 0;
-
-    if (cs->exception_index == EXCP_RESET) {
-        vector = 0;
-    } else if (env->intsrc != 0) {
-        vector = ctz32(env->intsrc) + 1;
-    }
-
-    if (avr_feature(env, AVR_FEATURE_3_BYTE_PC)) {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
-        cpu_stb_data(env, env->sp--, (ret & 0xff0000) >> 16);
-    } else if (avr_feature(env, AVR_FEATURE_2_BYTE_PC)) {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
-    } else {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-    }
-
-    env->pc_w = base + vector * size;
+    env->pc_w = base + vector;
     env->sregI = 0; /* clear Global Interrupt Flag */
 
     cs->exception_index = -1;
@@ -180,7 +160,7 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
             if (probe) {
                 page_size = 1;
             } else {
-                AVRCPU *cpu = AVR_CPU(cs);
+                NES6502CPU *cpu = NES6502_CPU(cs);
                 CPUNES6502State *env = &cpu->env;
                 env->fullacc = 1;
                 cpu_loop_exit_restore(cs, retaddr);
@@ -303,47 +283,6 @@ target_ulong helper_inb(CPUNES6502State *env, uint32_t port)
 void helper_outb(CPUNES6502State *env, uint32_t port, uint32_t data)
 {
     data &= 0x000000ff;
-
-    switch (port) {
-    case 0x38: /* RAMPD */
-        if (avr_feature(env, AVR_FEATURE_RAMPD)) {
-            env->rampD = (data & 0xff) << 16;
-        }
-        break;
-    case 0x39: /* RAMPX */
-        if (avr_feature(env, AVR_FEATURE_RAMPX)) {
-            env->rampX = (data & 0xff) << 16;
-        }
-        break;
-    case 0x3a: /* RAMPY */
-        if (avr_feature(env, AVR_FEATURE_RAMPY)) {
-            env->rampY = (data & 0xff) << 16;
-        }
-        break;
-    case 0x3b: /* RAMPZ */
-        if (avr_feature(env, AVR_FEATURE_RAMPZ)) {
-            env->rampZ = (data & 0xff) << 16;
-        }
-        break;
-    case 0x3c: /* EIDN */
-        env->eind = (data & 0xff) << 16;
-        break;
-    case 0x3d: /* SPL */
-        env->sp = (env->sp & 0xff00) | (data);
-        break;
-    case 0x3e: /* SPH */
-        if (avr_feature(env, AVR_FEATURE_2_BYTE_SP)) {
-            env->sp = (env->sp & 0x00ff) | (data << 8);
-        }
-        break;
-    case 0x3f: /* SREG */
-        cpu_set_sreg(env, data);
-        break;
-    default:
-        /* not a special register, pass to normal memory access */
-        address_space_stb(&address_space_memory, OFFSET_IO_REGISTERS + port,
-                          data, MEMTXATTRS_UNSPECIFIED, NULL);
-    }
 }
 
 /*

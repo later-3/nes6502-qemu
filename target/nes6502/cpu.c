@@ -27,21 +27,21 @@
 
 static void avr_cpu_set_pc(CPUState *cs, vaddr value)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
 
     cpu->env.pc_w = value; /* internally PC points to words */
 }
 
 static vaddr avr_cpu_get_pc(CPUState *cs)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
 
     return cpu->env.pc_w;
 }
 
 static bool avr_cpu_has_work(CPUState *cs)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
     return (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_RESET))
@@ -51,7 +51,7 @@ static bool avr_cpu_has_work(CPUState *cs)
 static void avr_cpu_synchronize_from_tb(CPUState *cs,
                                         const TranslationBlock *tb)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
     tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
@@ -62,7 +62,7 @@ static void avr_restore_state_to_opc(CPUState *cs,
                                      const TranslationBlock *tb,
                                      const uint64_t *data)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
     env->pc_w = data[0];
@@ -71,8 +71,8 @@ static void avr_restore_state_to_opc(CPUState *cs,
 static void avr_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
-    AVRCPU *cpu = AVR_CPU(cs);
-    AVRCPUClass *mcc = AVR_CPU_GET_CLASS(cpu);
+    NES6502CPU *cpu = NES6502_CPU(cs);
+    NES6502CPUClass *mcc = NES6502_CPU_GET_CLASS(cpu);
     CPUNES6502State *env = &cpu->env;
 
     if (mcc->parent_phases.hold) {
@@ -114,7 +114,7 @@ static void avr_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
-    AVRCPUClass *mcc = AVR_CPU_GET_CLASS(dev);
+    NES6502CPUClass *mcc = NES6502_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);
@@ -130,7 +130,7 @@ static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void avr_cpu_set_int(void *opaque, int irq, int level)
 {
-    AVRCPU *cpu = opaque;
+    NES6502CPU *cpu = opaque;
     CPUNES6502State *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     uint64_t mask = (1ull << irq);
@@ -146,9 +146,9 @@ static void avr_cpu_set_int(void *opaque, int irq, int level)
     }
 }
 
-static void avr_cpu_initfn(Object *obj)
+static void nes6502_cpu_initfn(Object *obj)
 {
-    AVRCPU *cpu = AVR_CPU(obj);
+    NES6502CPU *cpu = NES6502_CPU(obj);
 
     cpu_set_cpustate_pointers(cpu);
 
@@ -162,7 +162,7 @@ static ObjectClass *avr_cpu_class_by_name(const char *cpu_model)
     ObjectClass *oc;
 
     oc = object_class_by_name(cpu_model);
-    if (object_class_dynamic_cast(oc, TYPE_AVR_CPU) == NULL ||
+    if (object_class_dynamic_cast(oc, TYPE_NES6502_CPU) == NULL ||
         object_class_is_abstract(oc)) {
         oc = NULL;
     }
@@ -171,7 +171,7 @@ static ObjectClass *avr_cpu_class_by_name(const char *cpu_model)
 
 static void avr_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
-    AVRCPU *cpu = AVR_CPU(cs);
+    NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
     int i;
 
@@ -216,8 +216,8 @@ static const struct SysemuCPUOps avr_sysemu_ops = {
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static const struct TCGCPUOps avr_tcg_ops = {
-    .initialize = avr_cpu_tcg_init,
+static const struct TCGCPUOps nes6502_tcg_ops = {
+    .initialize = nes6502_cpu_tcg_init,
     .synchronize_from_tb = avr_cpu_synchronize_from_tb,
     .restore_state_to_opc = avr_restore_state_to_opc,
     .cpu_exec_interrupt = avr_cpu_exec_interrupt,
@@ -225,11 +225,11 @@ static const struct TCGCPUOps avr_tcg_ops = {
     .do_interrupt = avr_cpu_do_interrupt,
 };
 
-static void avr_cpu_class_init(ObjectClass *oc, void *data)
+static void nes6502_cpu_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
-    AVRCPUClass *mcc = AVR_CPU_CLASS(oc);
+    NES6502CPUClass *mcc = NES6502_CPU_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     device_class_set_parent_realize(dc, avr_cpu_realizefn, &mcc->parent_realize);
@@ -251,156 +251,39 @@ static void avr_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_adjust_breakpoint = avr_cpu_gdb_adjust_breakpoint;
     cc->gdb_num_core_regs = 35;
     cc->gdb_core_xml_file = "avr-cpu.xml";
-    cc->tcg_ops = &avr_tcg_ops;
+    cc->tcg_ops = &nes6502_tcg_ops;
 }
 
-/*
- * Setting features of AVR core type avr5
- * --------------------------------------
- *
- * This type of AVR core is present in the following AVR MCUs:
- *
- * ata5702m322, ata5782, ata5790, ata5790n, ata5791, ata5795, ata5831, ata6613c,
- * ata6614q, ata8210, ata8510, atmega16, atmega16a, atmega161, atmega162,
- * atmega163, atmega164a, atmega164p, atmega164pa, atmega165, atmega165a,
- * atmega165p, atmega165pa, atmega168, atmega168a, atmega168p, atmega168pa,
- * atmega168pb, atmega169, atmega169a, atmega169p, atmega169pa, atmega16hvb,
- * atmega16hvbrevb, atmega16m1, atmega16u4, atmega32a, atmega32, atmega323,
- * atmega324a, atmega324p, atmega324pa, atmega325, atmega325a, atmega325p,
- * atmega325pa, atmega3250, atmega3250a, atmega3250p, atmega3250pa, atmega328,
- * atmega328p, atmega328pb, atmega329, atmega329a, atmega329p, atmega329pa,
- * atmega3290, atmega3290a, atmega3290p, atmega3290pa, atmega32c1, atmega32m1,
- * atmega32u4, atmega32u6, atmega406, atmega64, atmega64a, atmega640, atmega644,
- * atmega644a, atmega644p, atmega644pa, atmega645, atmega645a, atmega645p,
- * atmega6450, atmega6450a, atmega6450p, atmega649, atmega649a, atmega649p,
- * atmega6490, atmega16hva, atmega16hva2, atmega32hvb, atmega6490a, atmega6490p,
- * atmega64c1, atmega64m1, atmega64hve, atmega64hve2, atmega64rfr2,
- * atmega644rfr2, atmega32hvbrevb, at90can32, at90can64, at90pwm161, at90pwm216,
- * at90pwm316, at90scr100, at90usb646, at90usb647, at94k, m3000
- */
-static void avr_avr5_initfn(Object *obj)
-{
-    AVRCPU *cpu = AVR_CPU(obj);
-    CPUNES6502State *env = &cpu->env;
-
-    set_avr_feature(env, AVR_FEATURE_LPM);
-    set_avr_feature(env, AVR_FEATURE_IJMP_ICALL);
-    set_avr_feature(env, AVR_FEATURE_ADIW_SBIW);
-    set_avr_feature(env, AVR_FEATURE_SRAM);
-    set_avr_feature(env, AVR_FEATURE_BREAK);
-
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_PC);
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_SP);
-    set_avr_feature(env, AVR_FEATURE_JMP_CALL);
-    set_avr_feature(env, AVR_FEATURE_LPMX);
-    set_avr_feature(env, AVR_FEATURE_MOVW);
-    set_avr_feature(env, AVR_FEATURE_MUL);
-}
-
-/*
- * Setting features of AVR core type avr51
- * --------------------------------------
- *
- * This type of AVR core is present in the following AVR MCUs:
- *
- * atmega128, atmega128a, atmega1280, atmega1281, atmega1284, atmega1284p,
- * atmega128rfa1, atmega128rfr2, atmega1284rfr2, at90can128, at90usb1286,
- * at90usb1287
- */
-static void avr_avr51_initfn(Object *obj)
-{
-    AVRCPU *cpu = AVR_CPU(obj);
-    CPUNES6502State *env = &cpu->env;
-
-    set_avr_feature(env, AVR_FEATURE_LPM);
-    set_avr_feature(env, AVR_FEATURE_IJMP_ICALL);
-    set_avr_feature(env, AVR_FEATURE_ADIW_SBIW);
-    set_avr_feature(env, AVR_FEATURE_SRAM);
-    set_avr_feature(env, AVR_FEATURE_BREAK);
-
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_PC);
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_SP);
-    set_avr_feature(env, AVR_FEATURE_RAMPZ);
-    set_avr_feature(env, AVR_FEATURE_ELPMX);
-    set_avr_feature(env, AVR_FEATURE_ELPM);
-    set_avr_feature(env, AVR_FEATURE_JMP_CALL);
-    set_avr_feature(env, AVR_FEATURE_LPMX);
-    set_avr_feature(env, AVR_FEATURE_MOVW);
-    set_avr_feature(env, AVR_FEATURE_MUL);
-}
-
-/*
- * Setting features of AVR core type avr6
- * --------------------------------------
- *
- * This type of AVR core is present in the following AVR MCUs:
- *
- * atmega2560, atmega2561, atmega256rfr2, atmega2564rfr2
- */
-static void avr_avr6_initfn(Object *obj)
-{
-    AVRCPU *cpu = AVR_CPU(obj);
-    CPUNES6502State *env = &cpu->env;
-
-    set_avr_feature(env, AVR_FEATURE_LPM);
-    set_avr_feature(env, AVR_FEATURE_IJMP_ICALL);
-    set_avr_feature(env, AVR_FEATURE_ADIW_SBIW);
-    set_avr_feature(env, AVR_FEATURE_SRAM);
-    set_avr_feature(env, AVR_FEATURE_BREAK);
-
-    set_avr_feature(env, AVR_FEATURE_3_BYTE_PC);
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_SP);
-    set_avr_feature(env, AVR_FEATURE_RAMPZ);
-    set_avr_feature(env, AVR_FEATURE_EIJMP_EICALL);
-    set_avr_feature(env, AVR_FEATURE_ELPMX);
-    set_avr_feature(env, AVR_FEATURE_ELPM);
-    set_avr_feature(env, AVR_FEATURE_JMP_CALL);
-    set_avr_feature(env, AVR_FEATURE_LPMX);
-    set_avr_feature(env, AVR_FEATURE_MOVW);
-    set_avr_feature(env, AVR_FEATURE_MUL);
-}
-
-typedef struct AVRCPUInfo {
+typedef struct NES6502CPUInfo {
     const char *name;
     void (*initfn)(Object *obj);
-} AVRCPUInfo;
+} NES6502CPUInfo;
 
 
-static void avr_cpu_list_entry(gpointer data, gpointer user_data)
+static void nes6502_cpu_list_entry(gpointer data, gpointer user_data)
 {
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
 
     qemu_printf("%s\n", typename);
 }
 
-void avr_cpu_list(void)
+void nes6502_cpu_list(void)
 {
     GSList *list;
-    list = object_class_get_list_sorted(TYPE_AVR_CPU, false);
-    g_slist_foreach(list, avr_cpu_list_entry, NULL);
+    list = object_class_get_list_sorted(TYPE_NES6502_CPU, false);
+    g_slist_foreach(list, nes6502_cpu_list_entry, NULL);
     g_slist_free(list);
 }
 
-#define DEFINE_AVR_CPU_TYPE(model, initfn) \
-    { \
-        .parent = TYPE_AVR_CPU, \
-        .instance_init = initfn, \
-        .name = AVR_CPU_TYPE_NAME(model), \
-    }
-
 static const TypeInfo avr_cpu_type_info[] = {
     {
-        .name = TYPE_AVR_CPU,
+        .name = TYPE_NES6502_CPU,
         .parent = TYPE_CPU,
-        .instance_size = sizeof(AVRCPU),
-        .instance_init = avr_cpu_initfn,
-        .class_size = sizeof(AVRCPUClass),
-        .class_init = avr_cpu_class_init,
-        .abstract = true,
+        .instance_size = sizeof(NES6502CPU),
+        .instance_init = nes6502_cpu_initfn,
+        .class_size = sizeof(NES6502CPUClass),
+        .class_init = nes6502_cpu_class_init,
     },
-    DEFINE_AVR_CPU_TYPE("avr5", avr_avr5_initfn),
-    DEFINE_AVR_CPU_TYPE("avr51", avr_avr51_initfn),
-    DEFINE_AVR_CPU_TYPE("avr6", avr_avr6_initfn),
 };
 
 DEFINE_TYPES(avr_cpu_type_info)

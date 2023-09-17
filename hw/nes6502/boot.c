@@ -132,12 +132,12 @@ static int fce_load_rom(char *rom, NesMcuState *s)
 
 static void do_cpu_reset(void *opaque)
 {
-    AVRCPU *cpu = opaque;
+    NES6502CPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
     cpu_set_pc(cs, 0x8000);
 }
 
-bool nes6502_load_firmware(AVRCPU *cpu, NesMcuState *s,
+bool nes6502_load_firmware(NES6502CPU *cpu, NesMcuState *s,
                        MemoryRegion *program_mr, const char *firmware)
 {
     g_autofree char *filename = NULL;
