@@ -8,25 +8,39 @@
             "name": "(gdb) Launch",    //名称
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/qemu-system-nes6502",    //当前目录下编译后的可执行文件
-            // "program": "/root/Code/qemu/build/qemu-system-rx",    //当前目录下编译后的可执行文件
-            "args": [
-                "-M", "xiaobawang-v1",
-                // "-M", "gdbsim-r5f562n8",
-                "-nographic",
+            // "program": "${workspaceFolder}/build/qemu-system-nes6502",    //当前目录下编译后的可执行文件
+            // "args": [
+            //     "-M", "xiaobawang-v1",
+            //     // "-M", "gdbsim-r5f562n8",
+            //     "-nographic",
+            //     // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
+            //     "-bios","/home/later/code/something_for_fun/nes/super_mario_bros.nes",
+            //     // "-serial","mon:stdio",
+            //     // "-serial","tcp::5678,server=on,wait=off",
+            //     // "-bios", "/root/Code/u-boot.bin",
+            //     // "-s","-S"
+            // ],
 
+
+            "program": "${workspaceFolder}/build/qemu-system-rx",    //当前目录下编译后的可执行文件
+            "args": [
+                "-M", "gdbsim-r5f562n8",
+                "-nographic",
                 "-bios","/home/later/code/something_for_fun/nes/super_mario_bros.nes",
+                // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
+                // "-bios","/home/later/code/u-boot.bin",
                 // "-serial","mon:stdio",
                 // "-serial","tcp::5678,server=on,wait=off",
                 // "-bios", "/root/Code/u-boot.bin",
                 // "-s","-S"
             ],
+
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",    //表示当前目录
             "environment": [],
             "externalConsole": false, // 在vscode自带的终端中运行，不打开外部终端
             "miDebuggerPath": "/usr/bin/gdb",
-            "MIMode": "gdb",    //用gdb来debug
+            "MIMode": "gdb",    //用gdb来debug 
             // "setupCommands": [
             //     {
             //         "description": "Enable pretty-printing for gdb",
