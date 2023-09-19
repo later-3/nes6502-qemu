@@ -43,6 +43,7 @@ struct NesMcuState {
     MemoryRegion eeprom;
     MemoryRegion cpu_ram;
     MemoryRegion chr_ram;
+    MemoryRegion cpu_ram_alias;
     DeviceState *io;
     AVRMaskState pwr[POWER_MAX];
     AVRUsartState usart[USART_MAX];

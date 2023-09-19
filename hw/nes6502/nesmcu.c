@@ -70,26 +70,25 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->kbd), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->kbd), 0, 0x4000);
 
+    /* mirror cpu ram*/
+    memory_region_init_alias(&s->cpu_ram_alias, OBJECT(dev),
+                             "nes.cpu_ram_alias", &s->cpu_ram, 0,
+                             0x2000);
+    memory_region_add_subregion(get_system_memory(), 0x6000,
+                                &s->cpu_ram_alias);
+
+    int val = 0x123456;
+    address_space_write(&address_space_memory, 0x1000,
+                    MEMTXATTRS_UNSPECIFIED, &val,
+                    4);
+
     /* CHR RAM*/
-    memory_region_init_ram(&s->chr_ram, OBJECT(dev), "chr_ram", MMC_MAX_PAGE_COUNT * 0x2000, &error_abort);
-    memory_region_add_subregion(get_system_memory(), RAM_ADDR + mc->cpu_ram_size, &s->chr_ram);
+    // memory_region_init_ram(&s->chr_ram, OBJECT(dev), "chr_ram", MMC_MAX_PAGE_COUNT * 0x2000, &error_abort);
+    // memory_region_add_subregion(get_system_memory(), RAM_ADDR + mc->cpu_ram_size, &s->chr_ram);
 
     /* MMC */
-    memory_region_init_ram(&s->chr_ram, OBJECT(dev), "mmc", MMC_MAX_PAGE_COUNT * 0x2000, &error_abort);
-    memory_region_add_subregion(get_system_memory(), RAM_ADDR + mc->cpu_ram_size, &s->chr_ram);
-
-    /* Flash */
-    memory_region_init_rom(&s->flash, OBJECT(dev),
-                           "flash", mc->flash_size, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), OFFSET_DATA, &s->flash);
-
-    /*
-     * I/O
-     *
-     * 0x00 - 0x1f: Registers
-     * 0x20 - 0x5f: I/O memory
-     * 0x60 - 0xff: Extended I/O
-     */
+    // memory_region_init_ram(&s->chr_ram, OBJECT(dev), "mmc", MMC_MAX_PAGE_COUNT * 0x2000, &error_abort);
+    // memory_region_add_subregion(get_system_memory(), RAM_ADDR + mc->cpu_ram_size, &s->chr_ram);
 }
 
 static Property atmega_props[] = {
