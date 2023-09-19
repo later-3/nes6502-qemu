@@ -66,6 +66,9 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu), 0, 0x2000);
 
     /* PSG IO*/
+    object_initialize_child(OBJECT(dev), "kbd", &s->kbd, TYPE_NES_KBD);
+    sysbus_realize(SYS_BUS_DEVICE(&s->kbd), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->kbd), 0, 0x4000);
 
     /* CHR RAM*/
     memory_region_init_ram(&s->chr_ram, OBJECT(dev), "chr_ram", MMC_MAX_PAGE_COUNT * 0x2000, &error_abort);
