@@ -23,6 +23,11 @@
         "type_traits": "c",
         "utility": "c",
         "cstddef": "c",
-        "vmstate.h": "c"
+        "vmstate.h": "c",
+        "chrono": "c",
+        "cmath": "c",
+        "variant": "c",
+        "complex": "c",
+        "random": "c"
     }
 }

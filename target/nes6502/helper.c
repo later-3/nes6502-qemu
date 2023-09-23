@@ -26,6 +26,26 @@
 #include "exec/address-spaces.h"
 #include "exec/helper-proto.h"
 
+static const char *flag_arr[8] = {
+    "carry_flag",
+    "zero_flag",
+    "interrupt_flag",
+    "decimal_flag",
+    "break_flag",
+    "unused_flag",
+    "overflow_flag",
+    "negative_flag"
+}; 
+
+void helper_print_opval(CPUNES6502State *env, uint32_t val)
+{
+    printf("print_flag opval 0x%x\n", val);
+}
+
+void helper_print_flag(CPUNES6502State *env, uint32_t val, uint32_t index)
+{
+    printf("print_flag val 0x%x, flag %s\n", val, flag_arr[index]);
+}
 
 uint32_t helper_psw_read(CPUNES6502State *env)
 {

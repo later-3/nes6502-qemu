@@ -218,13 +218,14 @@ static void cpu_address_absolute_y(uint16_t addr)
     tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
-static void cpu_address_relative(uint8_t imm)
+static int cpu_address_relative(uint8_t imm)
 {
     int addr = imm;
     if (addr & 0x80)
         addr -= 0x100;
     tcg_gen_movi_tl(op_address, imm);
     tcg_gen_add_tl(op_address, op_address, cpu_pc);
+    return addr;
 }
 
 static void cpu_address_indirect(uint16_t addr)
@@ -304,10 +305,40 @@ static void cpu_modify_flag(TCGv flag, TCGv res)
     tcg_gen_setcondi_tl(TCG_COND_EQ, flag, res, 1);
 }
 
+static void cpu_update_z_flags(TCGv r)
+{
+
+    TCGLabel *t, *done;
+
+    t = gen_new_label();
+    done = gen_new_label();
+    tcg_gen_brcondi_i32(TCG_COND_EQ, r, 0, t);
+    tcg_gen_movi_i32(cpu_zero_flag, 0);
+    tcg_gen_br(done);
+    gen_set_label(t);
+    tcg_gen_movi_i32(cpu_zero_flag, 1);
+    gen_set_label(done);
+}
+
+static void cpu_update_n_flags(TCGv r)
+{
+
+    TCGLabel *t, *done;
+
+    t = gen_new_label();
+    done = gen_new_label();
+    tcg_gen_brcondi_i32(TCG_COND_GE, r, 127, t);
+    tcg_gen_movi_i32(cpu_negative_flag, 0);
+    tcg_gen_br(done);
+    gen_set_label(t);
+    tcg_gen_movi_i32(cpu_negative_flag, 1);
+    gen_set_label(done);
+}
+
 static void cpu_update_zn_flags(TCGv r)
 {
-    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, r, 0);
-    tcg_gen_setcondi_tl(TCG_COND_GE, cpu_negative_flag, r, 127);
+    cpu_update_z_flags(r);
+    cpu_update_n_flags(r);
 }
 
 /*
@@ -512,14 +543,14 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
  */
 
 
-static void cpu_branch(DisasContext *ctx, TCGCond cond, TCGv value, int arg, uint8_t addr)
+static void cpu_branch(DisasContext *ctx, TCGCond cond, TCGv value, int arg, int addr)
 {
     TCGLabel *t, *done;
 
     t = gen_new_label();
     done = gen_new_label();
     tcg_gen_brcondi_i32(cond, value, arg, t);
-    gen_goto_tb(ctx, 0, ctx->base.pc_next);
+    gen_goto_tb(ctx, 0, ctx->npc);
     tcg_gen_br(done);
     gen_set_label(t);
     gen_goto_tb(ctx, 1, ctx->npc + addr);
@@ -594,12 +625,17 @@ static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
 
 static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
 {
-    cpu_address_relative(a->imm);
+    int res = cpu_address_relative(a->imm);
 
     TCGv tmp = tcg_temp_new();
+    // printf("bpl imm %d\n", a->imm);
     cpu_flag_set(cpu_negative_flag, tmp, 0);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
+    TCGv t = tcg_temp_new();
+    tcg_gen_movi_i32(t, 7);
+    gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, res);
     return true;
 }
 
@@ -790,6 +826,7 @@ static bool trans_LDA_ABSOLUTE(DisasContext *ctx, arg_LDA_ABSOLUTE *a)
 {
     cpu_address_absolute( a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_A, op_value);
+    gen_helper_print_opval(cpu_env, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
 }
@@ -825,7 +862,6 @@ static bool trans_LDA_INDIRECT_Y(DisasContext *ctx, arg_LDA_INDIRECT_Y *a)
     cpu_update_zn_flags(cpu_A);
     return true;
 }
-
 
 static bool trans_LDX_IM(DisasContext *ctx, arg_LDX_IM *a)
 {
@@ -1868,9 +1904,10 @@ static void translate(DisasContext *ctx)
 {
     // uint32_t opcode = next_word(ctx);
     uint32_t opcode;
+    target_long npc_t = ctx->npc;
     opcode = decode_insn_load(ctx);
     uint16_t op = opcode >> 24;
-    printf("opcode 0x%x %s\n", op, cpu_op_name[op]);
+    printf("opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);
         ctx->base.is_jmp = DISAS_NORETURN;
@@ -1881,25 +1918,10 @@ static void nes6502_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUNES6502State *env = cs->env_ptr;
-    uint32_t tb_flags = ctx->base.tb->flags;
 
     ctx->cs = cs;
     ctx->env = env;
     ctx->npc = ctx->base.pc_first;
-
-    ctx->skip_cond = TCG_COND_NEVER;
-    if (tb_flags & TB_FLAGS_SKIP) {
-        ctx->skip_cond = TCG_COND_ALWAYS;
-        ctx->skip_var0 = cpu_skip;
-    }
-
-    if (tb_flags & TB_FLAGS_FULL_ACCESS) {
-        /*
-         * This flag is set by ST/LD instruction we will regenerate it ONLY
-         * with mem/cpu memory access instead of mem access
-         */
-        ctx->base.max_insns = 1;
-    }
 }
 
 static void nes6502_tr_tb_start(DisasContextBase *db, CPUState *cs)
