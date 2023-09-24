@@ -14,6 +14,7 @@
                 // "-M", "gdbsim-r5f562n8",
                 "-monitor","tcp:localhost:1236,server=on,wait=off",
                 "-nographic",
+                "-d", "in_asm",
                 // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
                 "-bios","/home/later/code/something_for_fun/nes/super_mario_bros.nes",
                 // "-serial","mon:stdio",

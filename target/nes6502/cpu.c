@@ -105,10 +105,10 @@ static void avr_cpu_reset_hold(Object *obj)
     env->stack_point = 0;
 }
 
-static void avr_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void nes6502_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     info->mach = bfd_arch_avr;
-    info->print_insn = avr_print_insn;
+    info->print_insn = nes6502_print_insn;
 }
 
 static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
@@ -245,7 +245,7 @@ static void nes6502_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_pc = avr_cpu_get_pc;
     dc->vmsd = &vms_avr_cpu;
     cc->sysemu_ops = &avr_sysemu_ops;
-    cc->disas_set_info = avr_cpu_disas_set_info;
+    cc->disas_set_info = nes6502_cpu_disas_set_info;
     cc->gdb_read_register = avr_cpu_gdb_read_register;
     cc->gdb_write_register = avr_cpu_gdb_write_register;
     cc->gdb_adjust_breakpoint = avr_cpu_gdb_adjust_breakpoint;

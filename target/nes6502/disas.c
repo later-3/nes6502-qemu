@@ -23,15 +23,35 @@
 
 typedef struct {
     disassemble_info *info;
+    uint32_t addr;
+    uint32_t pc;
+    uint8_t len;
+    uint8_t bytes[8];
     uint16_t next_word;
     bool next_word_used;
 } DisasContext;
 
 
 /* decoder helper */
-static uint16_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
+static uint32_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
                            int i, int n)
 {
+    uint32_t addr = ctx->addr;
+
+    g_assert(ctx->len == i);
+    g_assert(n <= ARRAY_SIZE(ctx->bytes));
+
+    while (++i <= n) {
+        ctx->info->read_memory_func(addr++, &ctx->bytes[i - 1], 1, ctx->info);
+        insn |= ctx->bytes[i - 1] << (32 - i * 8);
+    }
+    ctx->addr = addr;
+    ctx->len = n;
+
+    while (++i <= n) {
+        // uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
+        // insn |= b << (32 - i * 8);
+    }
     return insn;
 }
 
@@ -45,31 +65,19 @@ static bool decode_insn(DisasContext *ctx, uint32_t insn);
     (pctx->info->fprintf_func(pctx->info->stream, "%-9s " format, \
                               mnemonic, ##__VA_ARGS__))
 
-int avr_print_insn(bfd_vma addr, disassemble_info *info)
+int nes6502_print_insn(bfd_vma addr, disassemble_info *dis)
 {
     DisasContext ctx;
-    DisasContext *pctx = &ctx;
-    bfd_byte buffer[4];
-    uint16_t insn;
-    int status;
+    uint32_t insn;
 
-    ctx.info = info;
+    ctx.info = dis;
+    ctx.pc = ctx.addr = addr;
+    ctx.len = 0;
 
-    status = info->read_memory_func(addr, buffer, 4, info);
-    if (status != 0) {
-        info->memory_error_func(status, addr, info);
-        return -1;
-    }
     insn = decode_insn_load(&ctx);
-    insn = bfd_getl16(buffer);
-    ctx.next_word = bfd_getl16(buffer + 2);
-    ctx.next_word_used = false;
-
     if (!decode_insn(&ctx, insn)) {
-        output(".db", "0x%02x, 0x%02x", buffer[0], buffer[1]);
     }
-
-    return ctx.next_word_used ? 4 : 2;
+    return ctx.addr - addr;
 }
 
 

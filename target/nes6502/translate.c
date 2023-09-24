@@ -201,7 +201,7 @@ static void cpu_address_zero_page_y(uint8_t imm)
 
 static void cpu_address_absolute(uint16_t addr)
 {
-    tcg_gen_movi_tl(op_address, addr);
+    tcg_gen_movi_tl(op_address, 0x2000);
     tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
@@ -633,7 +633,7 @@ static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
 
     TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 7);
-    gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
+    // gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
 
     cpu_branch(ctx, TCG_COND_EQ, tmp, 1, res);
     return true;
@@ -826,7 +826,7 @@ static bool trans_LDA_ABSOLUTE(DisasContext *ctx, arg_LDA_ABSOLUTE *a)
 {
     cpu_address_absolute( a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_A, op_value);
-    gen_helper_print_opval(cpu_env, op_value);
+    // gen_helper_print_opval(cpu_env, op_value);
     cpu_update_zn_flags(cpu_A);
     return true;
 }
@@ -1907,6 +1907,12 @@ static void translate(DisasContext *ctx)
     target_long npc_t = ctx->npc;
     opcode = decode_insn_load(ctx);
     uint16_t op = opcode >> 24;
+
+    int val = 0x123456;
+    address_space_read(&address_space_memory, 0x2000,
+                    MEMTXATTRS_UNSPECIFIED, &val,
+                    1);
+
     printf("opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);

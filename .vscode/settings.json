@@ -28,6 +28,9 @@
         "cmath": "c",
         "variant": "c",
         "complex": "c",
-        "random": "c"
+        "random": "c",
+        "nesppu.h": "c",
+        "avr_usart.h": "c",
+        "tcg-op.h": "c"
     }
 }

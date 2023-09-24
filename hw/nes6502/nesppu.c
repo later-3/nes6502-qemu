@@ -1,41 +1,74 @@
-/*
- * IMX31 UARTS
- *
- * Copyright (c) 2008 OKL
- * Originally Written by Hans Jiang
- * Copyright (c) 2011 NICTA Pty Ltd.
- * Updated by Jean-Christophe Dubois <jcd@tribudubois.net>
- *
- * This work is licensed under the terms of the GNU GPL, version 2 or later.
- * See the COPYING file in the top-level directory.
- *
- * This is a `bare-bones' implementation of the IMX series serial ports.
- * TODO:
- *  -- implement FIFOs.  The real hardware has 32 word transmit
- *                       and receive FIFOs; we currently use a 1-char buffer
- *  -- implement DMA
- *  -- implement BAUD-rate and modem lines, for when the backend
- *     is a real serial device.
- */
+
 #include "nesppu.h"
 
 #ifndef DEBUG_IMX_UART
 #define DEBUG_IMX_UART 0
 #endif
 
-#define DPRINTF(fmt, args...) \
-    do { \
-        if (DEBUG_IMX_UART) { \
-            fprintf(stderr, "[%s]%s: " fmt , TYPE_NES_PPU, \
-                                             __func__, ##args); \
-        } \
-    } while (0)
+byte ppu_sprite_palette[4][4];
+bool ppu_2007_first_read;
+byte ppu_addr_latch;
+byte ppu_latch;
+bool ppu_sprite_hit_occured = false;
 
+byte PPU_SPRRAM[0x100];
+byte PPU_RAM[0x4000];
+
+// PPUSTATUS Functions
+
+// inline bool ppu_sprite_overflow()                                   { return common_bit_set(ppu.PPUSTATUS, 5); }
+// inline bool ppu_sprite_0_hit()                                      { return common_bit_set(ppu.PPUSTATUS, 6); }
+// inline bool ppu_in_vblank()                                         { return common_bit_set(ppu.PPUSTATUS, 7); }
+
+// inline void ppu_set_sprite_overflow(bool yesno)                     { common_modify_bitb(&ppu.PPUSTATUS, 5, yesno); }
+static inline void ppu_set_sprite_0_hit(PPUState *ppu, bool yesno)          { common_modify_bitb(&ppu->PPUSTATUS, 6, yesno); }
+static inline void ppu_set_in_vblank(PPUState *ppu, bool yesno)            { common_modify_bitb(&ppu->PPUSTATUS, 7, yesno); }
 
 
 static uint64_t ppu_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
+    PPUState *ppu = opaque;
+    word address = offset + 0x2000;
+    ppu->PPUADDR &= 0x3FFF;
+    switch (address & 7) {
+        case 2:
+        {
+            byte value = ppu->PPUSTATUS;
+            ppu_set_in_vblank(ppu, false);
+            ppu_set_sprite_0_hit(ppu, false);
+            ppu->scroll_received_x = 0;
+            ppu->PPUSCROLL = 0;
+            ppu->addr_received_high_byte = 0;
+            ppu_latch = value;
+            ppu_addr_latch = 0;
+            ppu_2007_first_read = true;
+            return value;
+        }
+        case 4: return ppu_latch = PPU_SPRRAM[ppu->OAMADDR];
+        case 7:
+        {
+            byte data = 0;
+            
+            if (ppu->PPUADDR < 0x3F00) {
+                // data = ppu_latch = ppu_ram_read(ppu->PPUADDR);
+            }
+            else {
+                // data = ppu_ram_read(ppu->PPUADDR);
+                ppu_latch = 0;
+            }
+            
+            if (ppu_2007_first_read) {
+                ppu_2007_first_read = false;
+            }
+            else {
+                // ppu->PPUADDR += ppu_vram_address_increment();
+            }
+            return data;
+        }
+        default:
+            return 0xFF;
+    }
     return 0;
 }
 
@@ -49,6 +82,10 @@ static const struct MemoryRegionOps ppu_ops = {
     .read = ppu_read,
     .write = ppu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4
+    }
 };
 
 static void ppu_realize(DeviceState *dev, Error **errp)
