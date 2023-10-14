@@ -21,14 +21,14 @@ byte PPU_RAM[0x4000];
 // inline bool ppu_in_vblank()                                         { return common_bit_set(ppu.PPUSTATUS, 7); }
 
 // inline void ppu_set_sprite_overflow(bool yesno)                     { common_modify_bitb(&ppu.PPUSTATUS, 5, yesno); }
-static inline void ppu_set_sprite_0_hit(PPUState *ppu, bool yesno)          { common_modify_bitb(&ppu->PPUSTATUS, 6, yesno); }
-static inline void ppu_set_in_vblank(PPUState *ppu, bool yesno)            { common_modify_bitb(&ppu->PPUSTATUS, 7, yesno); }
+static inline void ppu_set_sprite_0_hit(RXPPUState *ppu, bool yesno)          { common_modify_bitb(&ppu->PPUSTATUS, 6, yesno); }
+static inline void ppu_set_in_vblank(RXPPUState *ppu, bool yesno)            { common_modify_bitb(&ppu->PPUSTATUS, 7, yesno); }
 
 
 static uint64_t ppu_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
-    PPUState *ppu = opaque;
+    RXPPUState *ppu = opaque;
     word address = offset + 0x2000;
     ppu->PPUADDR &= 0x3FFF;
     switch (address & 7) {
@@ -100,10 +100,10 @@ static void ppu_realize(DeviceState *dev, Error **errp)
 static void ppu_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    PPUState *s = NES_PPU(obj);
+    RXPPUState *s = RX_PPU(obj);
 
     memory_region_init_io(&s->iomem, obj, &ppu_ops, s,
-                          TYPE_NES_PPU, 0x1000);
+                          TYPE_RX_PPU, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
@@ -115,9 +115,9 @@ static void ppu_class_init(ObjectClass *klass, void *data)
     dc->desc = "xiaobawang nes ppu";
 }
 static const TypeInfo nes_ppu_info = {
-    .name           = TYPE_NES_PPU,
+    .name           = TYPE_RX_PPU,
     .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(PPUState),
+    .instance_size  = sizeof(RXPPUState),
     .instance_init  = ppu_init,
     .class_init     = ppu_class_init,
 };

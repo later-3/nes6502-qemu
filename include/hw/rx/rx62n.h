@@ -31,6 +31,7 @@
 #include "hw/char/renesas_sci.h"
 #include "qemu/units.h"
 #include "qom/object.h"
+#include "hw/rx/nesppu.h"
 
 #define TYPE_RX62N_MCU "rx62n-mcu"
 typedef struct RX62NState RX62NState;
@@ -74,6 +75,8 @@ struct RX62NState {
     uint32_t xtal_freq_hz;
     /* Peripheral Module Clock frequency */
     uint32_t pclk_freq_hz;
+
+    struct RXPPUState ppu;
 };
 
 #endif

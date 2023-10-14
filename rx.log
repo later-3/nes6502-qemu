@@ -1,0 +1,21 @@
+PROLOGUE: [size=45]
+0x7fffac000000:  55                       pushq    %rbp
+0x7fffac000001:  53                       pushq    %rbx
+0x7fffac000002:  41 54                    pushq    %r12
+0x7fffac000004:  41 55                    pushq    %r13
+0x7fffac000006:  41 56                    pushq    %r14
+0x7fffac000008:  41 57                    pushq    %r15
+0x7fffac00000a:  48 8b ef                 movq     %rdi, %rbp
+0x7fffac00000d:  48 81 c4 78 fb ff ff     addq     $-0x488, %rsp
+0x7fffac000014:  ff e6                    jmpq     *%rsi
+0x7fffac000016:  33 c0                    xorl     %eax, %eax
+0x7fffac000018:  48 81 c4 88 04 00 00     addq     $0x488, %rsp
+0x7fffac00001f:  c5 f8 77                 vzeroupper 
+0x7fffac000022:  41 5f                    popq     %r15
+0x7fffac000024:  41 5e                    popq     %r14
+0x7fffac000026:  41 5d                    popq     %r13
+0x7fffac000028:  41 5c                    popq     %r12
+0x7fffac00002a:  5b                       popq     %rbx
+0x7fffac00002b:  5d                       popq     %rbp
+0x7fffac00002c:  c3                       retq     
+

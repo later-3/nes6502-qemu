@@ -19,7 +19,7 @@
 #include "qom/object.h"
 #include "hw/misc/unimp.h"
 #include "nesmcu.h"
-
+#include "hw/timer/renesas_tmr.h"
 struct NesMcuClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
@@ -39,7 +39,18 @@ typedef struct NesMcuClass NesMcuClass;
 DECLARE_CLASS_CHECKERS(NesMcuClass, NES6502_MCU,
                        TYPE_NES6502_MCU)
 #define MMC_MAX_PAGE_COUNT 256
-static void atmega_realize(DeviceState *dev, Error **errp)
+
+static void register_tmr(NesMcuState *s)
+{
+    SysBusDevice *tmr;
+    object_initialize_child(OBJECT(s), "tmr[*]",
+                            &s->tmr, TYPE_RENESAS_TMR);
+    tmr = SYS_BUS_DEVICE(&s->tmr);
+    sysbus_realize(tmr, &error_abort);
+    sysbus_mmio_map(tmr, 0, 0x3000);
+}
+
+static void nes6502_realize(DeviceState *dev, Error **errp)
 {
     NesMcuState *s = NES6502_MCU(dev);
     const NesMcuClass *mc = NES6502_MCU_GET_CLASS(dev);
@@ -65,6 +76,8 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->ppu), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu), 0, 0x2000);
 
+    register_tmr(s);
+
     /* PSG IO*/
     object_initialize_child(OBJECT(dev), "kbd", &s->kbd, TYPE_NES_KBD);
     sysbus_realize(SYS_BUS_DEVICE(&s->kbd), &error_abort);
@@ -77,10 +90,10 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), 0x6000,
                                 &s->cpu_ram_alias);
 
-    int val = 0x123456;
-    address_space_write(&address_space_memory, 0x1000,
-                    MEMTXATTRS_UNSPECIFIED, &val,
-                    4);
+    // int val = 0x123456;
+    // address_space_write(&address_space_memory, 0x1000,
+    //                 MEMTXATTRS_UNSPECIFIED, &val,
+    //                 4);
 
     /* MMC */
     memory_region_init_ram(&s->mmc_ram, OBJECT(dev), "mmc", 0x10000, &error_abort);
@@ -102,7 +115,7 @@ static void nes6502_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = atmega_realize;
+    dc->realize = nes6502_realize;
     device_class_set_props(dc, atmega_props);
     /* Reason: Mapped at fixed location on the system bus */
     dc->user_creatable = false;

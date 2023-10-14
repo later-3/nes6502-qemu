@@ -253,6 +253,10 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
     register_cmt(s, 0);
     register_cmt(s, 1);
     register_sci(s, 0);
+
+    object_initialize_child(OBJECT(s), "ppu", &s->ppu, TYPE_RX_PPU);
+    sysbus_realize(SYS_BUS_DEVICE(&s->ppu), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu), 0, 0x2000);
 }
 
 static Property rx62n_properties[] = {

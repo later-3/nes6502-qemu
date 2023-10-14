@@ -1,4 +1,5 @@
 config NES6502_MCU
+    select NES6502_TIMER16
 
 config XIAOBAWANG
     select NES6502_MCU

@@ -31,6 +31,7 @@
         "random": "c",
         "nesppu.h": "c",
         "avr_usart.h": "c",
-        "tcg-op.h": "c"
+        "tcg-op.h": "c",
+        "rx_icu.h": "c"
     }
 }

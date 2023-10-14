@@ -201,6 +201,15 @@ static void cpu_address_zero_page_y(uint8_t imm)
 
 static void cpu_address_absolute(uint16_t addr)
 {
+    // tcg_gen_movi_tl(op_address, addr);
+    // tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_8);
+    
+    
+    // TCGv mem;
+    // mem = tcg_temp_new();
+    // tcg_gen_movi_tl(mem, 0x2002);
+    // tcg_gen_qemu_ld_i32(op_value, mem, 0, MO_32);
+
     TCGv mem;
     mem = tcg_temp_new();
     tcg_gen_movi_tl(mem, 0x2002);
@@ -209,7 +218,7 @@ static void cpu_address_absolute(uint16_t addr)
     tcg_gen_movi_tl(op_address, 0x2000);
     tcg_gen_qemu_ld_i32(op_value, op_address, 0, MO_32);
 
-    //     int val = 0x123456;
+    // int val = 0x123456;
     // address_space_read(&address_space_memory, 0x2000,
     //                 MEMTXATTRS_UNSPECIFIED, &val,
     //                 1);
@@ -1602,7 +1611,15 @@ static bool trans_SED(DisasContext *ctx, arg_SED *a)
 
 static bool trans_SEI(DisasContext *ctx, arg_SEI *a)
 {
-    tcg_gen_movi_tl(cpu_interrupt_flag, 1);
+    TCGv mem;
+    mem = tcg_temp_new();
+
+    TCGv reg;
+    reg = tcg_temp_new();
+
+    // tcg_gen_movi_tl(cpu_interrupt_flag, 1);
+    tcg_gen_movi_tl(mem, 0x3000);
+    tcg_gen_qemu_ld_i32(reg, mem, 0, MO_8);
     return true;
 }
 
@@ -1913,7 +1930,6 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
  */
 static void translate(DisasContext *ctx)
 {
-    // uint32_t opcode = next_word(ctx);
     uint32_t opcode;
     target_long npc_t = ctx->npc;
     opcode = decode_insn_load(ctx);
@@ -1983,7 +1999,7 @@ static void nes6502_tr_disas_log(const DisasContextBase *dcbase,
     target_disas(logfile, cs, dcbase->pc_first, dcbase->tb->size);
 }
 
-static const TranslatorOps avr_tr_ops = {
+static const TranslatorOps nes6502_tr_ops = {
     .init_disas_context = nes6502_tr_init_disas_context,
     .tb_start           = nes6502_tr_tb_start,
     .insn_start         = nes6502_tr_insn_start,
@@ -1996,5 +2012,5 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
                            target_ulong pc, void *host_pc)
 {
     DisasContext dc = { };
-    translator_loop(cs, tb, max_insns, pc, host_pc, &avr_tr_ops, &dc.base);
+    translator_loop(cs, tb, max_insns, pc, host_pc, &nes6502_tr_ops, &dc.base);
 }

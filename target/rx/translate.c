@@ -449,7 +449,18 @@ static bool trans_MOV_mr(DisasContext *ctx, arg_MOV_mr *a)
 /* mov.l #imm,rd */
 static bool trans_MOV_ir(DisasContext *ctx, arg_MOV_ir *a)
 {
-    tcg_gen_movi_i32(cpu_regs[a->rd], a->imm);
+    // tcg_gen_movi_i32(cpu_regs[a->rd], a->imm);
+
+    TCGv mem;
+    mem = tcg_temp_new();
+
+    TCGv reg;
+    reg = tcg_temp_new();
+
+    tcg_gen_movi_tl(mem, 0x2000);
+    tcg_gen_qemu_ld_i32(reg, mem, 0, MO_8);
+
+
     return true;
 }
 

@@ -19,7 +19,7 @@
 #include "qemu/units.h"
 #include "nesppu.h"
 #include "nespsg.h"
-
+#include "hw/timer/renesas_tmr.h"
 #define TYPE_NES6502_MCU     "nesmcu"
 
 typedef struct NesMcuState NesMcuState;
@@ -50,7 +50,7 @@ struct NesMcuState {
     AVRUsartState usart[USART_MAX];
     AVRTimer16State timer[TIMER_MAX];
     uint64_t xtal_freq_hz;
-
+    RTMRState tmr;
     int mmc_prg_pages_number;
     int mmc_chr_pages_number;
     struct PPUState ppu;
