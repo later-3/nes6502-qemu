@@ -72,10 +72,83 @@ static uint64_t ppu_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void ppu_write(void *opaque, hwaddr offset,
-                             uint64_t value, unsigned size)
+static word ppu_get_real_ram_address(word address)
 {
-    printf("ppu write\n");
+    if (address < 0x2000) {
+        return address;
+    }
+    else if (address < 0x3F00) {
+        if (address < 0x3000) {
+            return address;
+        }
+        else {
+            return address;// - 0x1000;
+        }
+    }
+    else if (address < 0x4000) {
+        address = 0x3F00 | (address & 0x1F);
+        if (address == 0x3F10 || address == 0x3F14 || address == 0x3F18 || address == 0x3F1C)
+            return address - 0x10;
+        else
+            return address;
+    }
+    return 0xFFFF;
+}
+
+static void ppu_ram_write(word address, byte data)
+{
+    PPU_RAM[ppu_get_real_ram_address(address)] = data;
+}
+
+static void ppu_write(void *opaque, hwaddr offset,
+                             uint64_t data, unsigned size)
+{
+    PPUState *ppu = opaque;
+    word address = offset + 0x2000;
+    address &= 7;
+    ppu_latch = data;
+    ppu->PPUADDR &= 0x3FFF;
+    switch(address) {
+        case 0: if (ppu->ready) ppu->PPUCTRL = data; break;
+        case 1: if (ppu->ready) ppu->PPUMASK = data; break;
+        case 3: ppu->OAMADDR = data; break;
+        case 4: PPU_SPRRAM[ppu->OAMADDR++] = data; break;
+        case 5:
+        {
+            if (ppu->scroll_received_x)
+                ppu->PPUSCROLL_Y = data;
+            else
+                ppu->PPUSCROLL_X = data;
+
+            ppu->scroll_received_x ^= 1;
+            break;
+        }
+        case 6:
+        {
+            if (!ppu->ready)
+                return;
+
+            if (ppu->addr_received_high_byte)
+                ppu->PPUADDR = (ppu_addr_latch << 8) + data;
+            else
+                ppu_addr_latch = data;
+
+            ppu->addr_received_high_byte ^= 1;
+            ppu_2007_first_read = true;
+            break;
+        }
+        case 7:
+        {
+            if (ppu->PPUADDR > 0x1FFF || ppu->PPUADDR < 0x4000) {
+                ppu_ram_write(ppu->PPUADDR ^ ppu->mirroring_xor, data);
+                ppu_ram_write(ppu->PPUADDR, data);
+            }
+            else {
+                ppu_ram_write(ppu->PPUADDR, data);
+            }
+        }
+    }
+    ppu_latch = data;
 }
 
 static const struct MemoryRegionOps ppu_ops = {
