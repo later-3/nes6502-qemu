@@ -159,12 +159,14 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 /* generic load wrapper */
 static inline void rx_gen_ld(unsigned int size, TCGv reg, TCGv mem)
 {
+    tcg_gen_movi_tl(mem, 0x00088240);
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_SIGN | MO_TE);
 }
 
 /* unsigned load wrapper */
 static inline void rx_gen_ldu(unsigned int size, TCGv reg, TCGv mem)
 {
+    tcg_gen_movi_tl(mem, 0x00088240);
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_TE);
 }
 

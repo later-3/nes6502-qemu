@@ -47,11 +47,6 @@ static uint32_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
     }
     ctx->addr = addr;
     ctx->len = n;
-
-    while (++i <= n) {
-        // uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
-        // insn |= b << (32 - i * 8);
-    }
     return insn;
 }
 

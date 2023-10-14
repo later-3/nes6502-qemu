@@ -201,8 +201,19 @@ static void cpu_address_zero_page_y(uint8_t imm)
 
 static void cpu_address_absolute(uint16_t addr)
 {
+    TCGv mem;
+    mem = tcg_temp_new();
+    tcg_gen_movi_tl(mem, 0x2002);
+    tcg_gen_qemu_ld_tl(op_value, mem, 0, MO_8);
+
     tcg_gen_movi_tl(op_address, 0x2000);
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    tcg_gen_qemu_ld_i32(op_value, op_address, 0, MO_32);
+
+    //     int val = 0x123456;
+    // address_space_read(&address_space_memory, 0x2000,
+    //                 MEMTXATTRS_UNSPECIFIED, &val,
+    //                 1);
+
 }
 
 static void cpu_address_absolute_x(uint16_t addr)
@@ -1907,11 +1918,6 @@ static void translate(DisasContext *ctx)
     target_long npc_t = ctx->npc;
     opcode = decode_insn_load(ctx);
     uint16_t op = opcode >> 24;
-
-    int val = 0x123456;
-    address_space_read(&address_space_memory, 0x2000,
-                    MEMTXATTRS_UNSPECIFIED, &val,
-                    1);
 
     printf("opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
     if (!decode_insn(ctx, opcode)) {

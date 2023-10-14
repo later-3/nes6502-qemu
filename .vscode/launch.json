@@ -8,18 +8,23 @@
             "name": "(gdb) Launch",    //名称
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/qemu-system-nes6502",    //当前目录下编译后的可执行文件
+            "program": "${workspaceFolder}/build/qemu-system-nes6502",   
+            // "program": "${workspaceFolder}/build/qemu-system-rx",   
             "args": [
                 "-M", "xiaobawang-v1",
                 // "-M", "gdbsim-r5f562n8",
-                "-monitor","tcp:localhost:1236,server=on,wait=off",
+                // "-monitor","tcp:localhost:1236,server=on,wait=off",
                 "-nographic",
-                "-d", "in_asm",
+                "-d", "in_asm,out_asm",
                 // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
+                
                 "-bios","/home/later/code/something_for_fun/nes/super_mario_bros.nes",
+                
                 // "-serial","mon:stdio",
                 // "-serial","tcp::5678,server=on,wait=off",
-                // "-bios", "/root/Code/u-boot.bin",
+                
+                // "-bios", "/home/later/code/u-boot.bin",
+                
                 // "-s","-S"
             ],
 
