@@ -103,7 +103,7 @@ static void ppu_init(Object *obj)
     PPUState *s = NES_PPU(obj);
 
     memory_region_init_io(&s->iomem, obj, &ppu_ops, s,
-                          TYPE_NES_PPU, 0x1000);
+                          TYPE_NES_PPU, 0x2000);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 

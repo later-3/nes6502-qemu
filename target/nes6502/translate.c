@@ -1613,13 +1613,16 @@ static bool trans_SEI(DisasContext *ctx, arg_SEI *a)
 {
     TCGv mem;
     mem = tcg_temp_new();
+    tcg_gen_movi_tl(mem, 0x2000);
 
     TCGv reg;
     reg = tcg_temp_new();
+    tcg_gen_movi_tl(reg, 0x10);
 
-    // tcg_gen_movi_tl(cpu_interrupt_flag, 1);
-    tcg_gen_movi_tl(mem, 0x3000);
-    tcg_gen_qemu_ld_i32(reg, mem, 0, MO_8);
+    tcg_gen_qemu_st_tl(reg, mem, 0, MO_8);
+
+    tcg_gen_movi_tl(cpu_interrupt_flag, 1);
+
     return true;
 }
 

@@ -140,55 +140,16 @@ hwaddr avr_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return addr; /* I assume 1:1 address correspondence */
 }
 
-bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+bool nes6502_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr)
 {
-    int prot, page_size = TARGET_PAGE_SIZE;
-    uint32_t paddr;
+    uint32_t address, physical, prot;
 
-    address &= TARGET_PAGE_MASK;
-
-    if (mmu_idx == MMU_CODE_IDX) {
-        /* Access to code in flash. */
-        paddr = FIRST_CODE_OFFSET + address;
-        paddr = FIRST_CODE_OFFSET;
-        prot = PAGE_READ | PAGE_EXEC;
-        if (paddr >= OFFSET_DATA) {
-            /*
-             * This should not be possible via any architectural operations.
-             * There is certainly not an exception that we can deliver.
-             * Accept probing that might come from generic code.
-             */
-            if (probe) {
-                return false;
-            }
-            error_report("execution left flash memory");
-            abort();
-        }
-    } else {
-        /* Access to memory. */
-        paddr = OFFSET_DATA + address;
-        prot = PAGE_READ | PAGE_WRITE;
-        if (address < NUMBER_OF_CPU_REGISTERS + NUMBER_OF_IO_REGISTERS) {
-            /*
-             * Access to CPU registers, exit and rebuilt this TB to use
-             * full access in case it touches specially handled registers
-             * like SREG or SP.  For probing, set page_size = 1, in order
-             * to force tlb_fill to be called for the next access.
-             */
-            if (probe) {
-                page_size = 1;
-            } else {
-                NES6502CPU *cpu = NES6502_CPU(cs);
-                CPUNES6502State *env = &cpu->env;
-                env->fullacc = 1;
-                cpu_loop_exit_restore(cs, retaddr);
-            }
-        }
-    }
-
-    tlb_set_page(cs, address, paddr, prot, mmu_idx, page_size);
+    /* Linear mapping */
+    address = physical = addr & TARGET_PAGE_MASK;
+    prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    tlb_set_page(cs, address, physical, prot, mmu_idx, TARGET_PAGE_SIZE);
     return true;
 }
 

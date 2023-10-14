@@ -1,234 +1,72 @@
 PROLOGUE: [size=45]
-0x7fffac000000:  55                       pushq    %rbp
-0x7fffac000001:  53                       pushq    %rbx
-0x7fffac000002:  41 54                    pushq    %r12
-0x7fffac000004:  41 55                    pushq    %r13
-0x7fffac000006:  41 56                    pushq    %r14
-0x7fffac000008:  41 57                    pushq    %r15
-0x7fffac00000a:  48 8b ef                 movq     %rdi, %rbp
-0x7fffac00000d:  48 81 c4 78 fb ff ff     addq     $-0x488, %rsp
-0x7fffac000014:  ff e6                    jmpq     *%rsi
-0x7fffac000016:  33 c0                    xorl     %eax, %eax
-0x7fffac000018:  48 81 c4 88 04 00 00     addq     $0x488, %rsp
-0x7fffac00001f:  c5 f8 77                 vzeroupper 
-0x7fffac000022:  41 5f                    popq     %r15
-0x7fffac000024:  41 5e                    popq     %r14
-0x7fffac000026:  41 5d                    popq     %r13
-0x7fffac000028:  41 5c                    popq     %r12
-0x7fffac00002a:  5b                       popq     %rbx
-0x7fffac00002b:  5d                       popq     %rbp
-0x7fffac00002c:  c3                       retq     
+0x7fffb0000000:  
+OBJD-H: 55534154415541564157488bef4881c478fbffffffe633c04881c488040000c5
+OBJD-H: f877415f415e415d415c5b5dc3
 
 ----------------
 IN: 
 0x00008000:  SEI       
 0x00008001:  CLD       
-0x00008002:  LDA_IM    16
+0x00008002:  LDA_IM    64
 0x00008004:  STA_ABSOLUTE 0, 32
 0x00008007:  LDX_IM    255
 0x00008009:  TXS       
 0x0000800a:  LDA_ABSOLUTE 2, 32
 0x0000800d:  BPL       251
 
-OUT: [size=864]
+OUT: [size=880]
   -- guest addr 0x00008000 + tb prologue
-0x7fff6c000100:  8b 5d f0                 movl     -0x10(%rbp), %ebx
-0x7fff6c000103:  85 db                    testl    %ebx, %ebx
-0x7fff6c000105:  0f 8c 74 02 00 00        jl       0x7fff6c00037f
-0x7fff6c00010b:  bb 00 30 00 00           movl     $0x3000, %ebx
-0x7fff6c000110:  8b fb                    movl     %ebx, %edi
-0x7fff6c000112:  c1 ef 03                 shrl     $3, %edi
-0x7fff6c000115:  23 bd f0 fe ff ff        andl     -0x110(%rbp), %edi
-0x7fff6c00011b:  48 03 bd f8 fe ff ff     addq     -0x108(%rbp), %rdi
-0x7fff6c000122:  8b f3                    movl     %ebx, %esi
-0x7fff6c000124:  81 e6 00 ff ff ff        andl     $0xffffff00, %esi
-0x7fff6c00012a:  3b 37                    cmpl     (%rdi), %esi
-0x7fff6c00012c:  0f 85 59 02 00 00        jne      0x7fff6c00038b
-0x7fff6c000132:  48 8b 7f 10              movq     0x10(%rdi), %rdi
-0x7fff6c000136:  0f b6 1c 3b              movzbl   (%rbx, %rdi), %ebx
+0x7fff70000100:  
+OBJD-H: 8b5df085db0f8c88020000bb1000000041bc00200000418bfcc1ef0323bdf0fe
+OBJD-H: ffff4803bdf8feffff418bf481e600ffffff3b77040f8564020000488b7f1041
+OBJD-H: 881c3cc785ec00000001000000
   -- guest addr 0x00008001
-0x7fff6c00013a:  c7 85 f0 00 00 00 00 00  movl     $0, 0xf0(%rbp)
-0x7fff6c000142:  00 00
+0x7fff7000014d:  
+OBJD-H: c785f000000000000000
   -- guest addr 0x00008002
-0x7fff6c000144:  bb 10 00 00 00           movl     $0x10, %ebx
-0x7fff6c000149:  89 9d d8 00 00 00        movl     %ebx, 0xd8(%rbp)
-0x7fff6c00014f:  c7 85 e8 00 00 00 00 00  movl     $0, 0xe8(%rbp)
-0x7fff6c000157:  00 00
-0x7fff6c000159:  83 fb 7f                 cmpl     $0x7f, %ebx
-0x7fff6c00015c:  0f 8d 0f 00 00 00        jge      0x7fff6c000171
-0x7fff6c000162:  c7 85 00 01 00 00 00 00  movl     $0, 0x100(%rbp)
-0x7fff6c00016a:  00 00
-0x7fff6c00016c:  e9 0a 00 00 00           jmp      0x7fff6c00017b
-0x7fff6c000171:  c7 85 00 01 00 00 01 00  movl     $1, 0x100(%rbp)
-0x7fff6c000179:  00 00
+0x7fff70000157:  
+OBJD-H: bb40000000899dd8000000c785e80000000000000083fb7f0f8d0f000000c785
+OBJD-H: 0001000000000000e90a000000c7850001000001000000
   -- guest addr 0x00008004
-0x7fff6c00017b:  bb 02 20 00 00           movl     $0x2002, %ebx
-0x7fff6c000180:  8b fb                    movl     %ebx, %edi
-0x7fff6c000182:  c1 ef 03                 shrl     $3, %edi
-0x7fff6c000185:  23 bd f0 fe ff ff        andl     -0x110(%rbp), %edi
-0x7fff6c00018b:  48 03 bd f8 fe ff ff     addq     -0x108(%rbp), %rdi
-0x7fff6c000192:  8b f3                    movl     %ebx, %esi
-0x7fff6c000194:  81 e6 00 ff ff ff        andl     $0xffffff00, %esi
-0x7fff6c00019a:  3b 37                    cmpl     (%rdi), %esi
-0x7fff6c00019c:  0f 85 07 02 00 00        jne      0x7fff6c0003a9
-0x7fff6c0001a2:  48 8b 7f 10              movq     0x10(%rdi), %rdi
-0x7fff6c0001a6:  0f b6 1c 3b              movzbl   (%rbx, %rdi), %ebx
-0x7fff6c0001aa:  89 9d 10 01 00 00        movl     %ebx, 0x110(%rbp)
-0x7fff6c0001b0:  c7 85 0c 01 00 00 00 20  movl     $0x2000, 0x10c(%rbp)
-0x7fff6c0001b8:  00 00
-0x7fff6c0001ba:  bb 00 20 00 00           movl     $0x2000, %ebx
-0x7fff6c0001bf:  8b fb                    movl     %ebx, %edi
-0x7fff6c0001c1:  c1 ef 03                 shrl     $3, %edi
-0x7fff6c0001c4:  23 bd f0 fe ff ff        andl     -0x110(%rbp), %edi
-0x7fff6c0001ca:  48 03 bd f8 fe ff ff     addq     -0x108(%rbp), %rdi
-0x7fff6c0001d1:  8d 73 03                 leal     3(%rbx), %esi
-0x7fff6c0001d4:  81 e6 00 ff ff ff        andl     $0xffffff00, %esi
-0x7fff6c0001da:  3b 37                    cmpl     (%rdi), %esi
-0x7fff6c0001dc:  0f 85 e5 01 00 00        jne      0x7fff6c0003c7
-0x7fff6c0001e2:  48 8b 7f 10              movq     0x10(%rdi), %rdi
-0x7fff6c0001e6:  44 8b 24 3b              movl     (%rbx, %rdi), %r12d
-0x7fff6c0001ea:  44 89 a5 10 01 00 00     movl     %r12d, 0x110(%rbp)
-0x7fff6c0001f1:  44 8b a5 d8 00 00 00     movl     0xd8(%rbp), %r12d
-0x7fff6c0001f8:  8b fb                    movl     %ebx, %edi
-0x7fff6c0001fa:  c1 ef 03                 shrl     $3, %edi
-0x7fff6c0001fd:  23 bd f0 fe ff ff        andl     -0x110(%rbp), %edi
-0x7fff6c000203:  48 03 bd f8 fe ff ff     addq     -0x108(%rbp), %rdi
-0x7fff6c00020a:  8b f3                    movl     %ebx, %esi
-0x7fff6c00020c:  81 e6 00 ff ff ff        andl     $0xffffff00, %esi
-0x7fff6c000212:  3b 77 04                 cmpl     4(%rdi), %esi
-0x7fff6c000215:  0f 85 cb 01 00 00        jne      0x7fff6c0003e6
-0x7fff6c00021b:  48 8b 7f 10              movq     0x10(%rdi), %rdi
-0x7fff6c00021f:  44 88 24 3b              movb     %r12b, (%rbx, %rdi)
+0x7fff7000018e:  
+OBJD-H: bb022000008bfbc1ef0323bdf0feffff4803bdf8feffff8bf381e600ffffff3b
+OBJD-H: 370f8509020000488b7f100fb61c3b899d10010000c7850c01000000200000bb
+OBJD-H: 002000008bfbc1ef0323bdf0feffff4803bdf8feffff8d730381e600ffffff3b
+OBJD-H: 370f85e7010000488b7f10448b243b4489a510010000448ba5d80000008bfbc1
+OBJD-H: ef0323bdf0feffff4803bdf8feffff8bf381e600ffffff3b77040f85cd010000
+OBJD-H: 488b7f104488243b
   -- guest addr 0x00008007
-0x7fff6c000223:  bb ff 00 00 00           movl     $0xff, %ebx
-0x7fff6c000228:  89 9d dc 00 00 00        movl     %ebx, 0xdc(%rbp)
-0x7fff6c00022e:  c7 85 e8 00 00 00 00 00  movl     $0, 0xe8(%rbp)
-0x7fff6c000236:  00 00
-0x7fff6c000238:  83 fb 7f                 cmpl     $0x7f, %ebx
-0x7fff6c00023b:  0f 8d 0f 00 00 00        jge      0x7fff6c000250
-0x7fff6c000241:  c7 85 00 01 00 00 00 00  movl     $0, 0x100(%rbp)
-0x7fff6c000249:  00 00
-0x7fff6c00024b:  e9 0a 00 00 00           jmp      0x7fff6c00025a
-0x7fff6c000250:  c7 85 00 01 00 00 01 00  movl     $1, 0x100(%rbp)
-0x7fff6c000258:  00 00
+0x7fff70000236:  
+OBJD-H: bbff000000899ddc000000c785e80000000000000083fb7f0f8d0f000000c785
+OBJD-H: 0001000000000000e90a000000c7850001000001000000
   -- guest addr 0x00008009
-0x7fff6c00025a:  8b 9d dc 00 00 00        movl     0xdc(%rbp), %ebx
-0x7fff6c000260:  89 9d 08 01 00 00        movl     %ebx, 0x108(%rbp)
+0x7fff7000026d:  
+OBJD-H: 8b9ddc000000899d08010000
   -- guest addr 0x0000800a
-0x7fff6c000266:  bb 02 20 00 00           movl     $0x2002, %ebx
-0x7fff6c00026b:  8b fb                    movl     %ebx, %edi
-0x7fff6c00026d:  c1 ef 03                 shrl     $3, %edi
-0x7fff6c000270:  23 bd f0 fe ff ff        andl     -0x110(%rbp), %edi
-0x7fff6c000276:  48 03 bd f8 fe ff ff     addq     -0x108(%rbp), %rdi
-0x7fff6c00027d:  8b f3                    movl     %ebx, %esi
-0x7fff6c00027f:  81 e6 00 ff ff ff        andl     $0xffffff00, %esi
-0x7fff6c000285:  3b 37                    cmpl     (%rdi), %esi
-0x7fff6c000287:  0f 85 78 01 00 00        jne      0x7fff6c000405
-0x7fff6c00028d:  48 8b 7f 10              movq     0x10(%rdi), %rdi
-0x7fff6c000291:  0f b6 1c 3b              movzbl   (%rbx, %rdi), %ebx
-0x7fff6c000295:  89 9d 10 01 00 00        movl     %ebx, 0x110(%rbp)
-0x7fff6c00029b:  c7 85 0c 01 00 00 00 20  movl     $0x2000, 0x10c(%rbp)
-0x7fff6c0002a3:  00 00
-0x7fff6c0002a5:  bb 00 20 00 00           movl     $0x2000, %ebx
-0x7fff6c0002aa:  8b fb                    movl     %ebx, %edi
-0x7fff6c0002ac:  c1 ef 03                 shrl     $3, %edi
-0x7fff6c0002af:  23 bd f0 fe ff ff        andl     -0x110(%rbp), %edi
-0x7fff6c0002b5:  48 03 bd f8 fe ff ff     addq     -0x108(%rbp), %rdi
-0x7fff6c0002bc:  8d 73 03                 leal     3(%rbx), %esi
-0x7fff6c0002bf:  81 e6 00 ff ff ff        andl     $0xffffff00, %esi
-0x7fff6c0002c5:  3b 37                    cmpl     (%rdi), %esi
-0x7fff6c0002c7:  0f 85 56 01 00 00        jne      0x7fff6c000423
-0x7fff6c0002cd:  48 8b 7f 10              movq     0x10(%rdi), %rdi
-0x7fff6c0002d1:  8b 1c 3b                 movl     (%rbx, %rdi), %ebx
-0x7fff6c0002d4:  89 9d 10 01 00 00        movl     %ebx, 0x110(%rbp)
-0x7fff6c0002da:  89 9d d8 00 00 00        movl     %ebx, 0xd8(%rbp)
-0x7fff6c0002e0:  85 db                    testl    %ebx, %ebx
-0x7fff6c0002e2:  0f 84 0f 00 00 00        je       0x7fff6c0002f7
-0x7fff6c0002e8:  c7 85 e8 00 00 00 00 00  movl     $0, 0xe8(%rbp)
-0x7fff6c0002f0:  00 00
-0x7fff6c0002f2:  e9 0a 00 00 00           jmp      0x7fff6c000301
-0x7fff6c0002f7:  c7 85 e8 00 00 00 01 00  movl     $1, 0xe8(%rbp)
-0x7fff6c0002ff:  00 00
-0x7fff6c000301:  8b 9d d8 00 00 00        movl     0xd8(%rbp), %ebx
-0x7fff6c000307:  83 fb 7f                 cmpl     $0x7f, %ebx
-0x7fff6c00030a:  0f 8d 0f 00 00 00        jge      0x7fff6c00031f
-0x7fff6c000310:  c7 85 00 01 00 00 00 00  movl     $0, 0x100(%rbp)
-0x7fff6c000318:  00 00
-0x7fff6c00031a:  e9 0a 00 00 00           jmp      0x7fff6c000329
-0x7fff6c00031f:  c7 85 00 01 00 00 01 00  movl     $1, 0x100(%rbp)
-0x7fff6c000327:  00 00
+0x7fff70000279:  
+OBJD-H: bb022000008bfbc1ef0323bdf0feffff4803bdf8feffff8bf381e600ffffff3b
+OBJD-H: 370f857a010000488b7f100fb61c3b899d10010000c7850c01000000200000bb
+OBJD-H: 002000008bfbc1ef0323bdf0feffff4803bdf8feffff8d730381e600ffffff3b
+OBJD-H: 370f8558010000488b7f108b1c3b899d10010000899dd800000085db0f840f00
+OBJD-H: 0000c785e800000000000000e90a000000c785e8000000010000008b9dd80000
+OBJD-H: 0083fb7f0f8d0f000000c7850001000000000000e90a000000c7850001000001
+OBJD-H: 000000
   -- guest addr 0x0000800d
-0x7fff6c000329:  8b 5d 00                 movl     (%rbp), %ebx
-0x7fff6c00032c:  81 c3 fb 00 00 00        addl     $0xfb, %ebx
-0x7fff6c000332:  89 9d 0c 01 00 00        movl     %ebx, 0x10c(%rbp)
-0x7fff6c000338:  8b 9d 00 01 00 00        movl     0x100(%rbp), %ebx
-0x7fff6c00033e:  85 db                    testl    %ebx, %ebx
-0x7fff6c000340:  0f 94 c3                 sete     %bl
-0x7fff6c000343:  0f b6 db                 movzbl   %bl, %ebx
-0x7fff6c000346:  83 fb 01                 cmpl     $1, %ebx
-0x7fff6c000349:  0f 84 18 00 00 00        je       0x7fff6c000367
-0x7fff6c00034f:  e9 00 00 00 00           jmp      0x7fff6c000354
-0x7fff6c000354:  c7 45 00 0f 80 00 00     movl     $0x800f, (%rbp)
-0x7fff6c00035b:  48 8d 05 de fc ff ff     leaq     -0x322(%rip), %rax
-0x7fff6c000362:  e9 b1 fc ff ff           jmp      0x7fff6c000018
-0x7fff6c000367:  e9 00 00 00 00           jmp      0x7fff6c00036c
-0x7fff6c00036c:  c7 45 00 0a 80 00 00     movl     $0x800a, (%rbp)
-0x7fff6c000373:  48 8d 05 c7 fc ff ff     leaq     -0x339(%rip), %rax
-0x7fff6c00037a:  e9 99 fc ff ff           jmp      0x7fff6c000018
-0x7fff6c00037f:  48 8d 05 bd fc ff ff     leaq     -0x343(%rip), %rax
-0x7fff6c000386:  e9 8d fc ff ff           jmp      0x7fff6c000018
+0x7fff7000033c:  
+OBJD-H: 8b5d0081c3fb000000899d0c0100008b9d0001000085db0f94c30fb6db83fb01
+OBJD-H: 0f841900000090e900000000c745000f800000488d05cafcffffe99dfcffffe9
+OBJD-H: 00000000c745000a800000488d05b3fcffffe985fcffff488d05a9fcffffe979
+OBJD-H: fcffff
   -- tb slow paths + alignment
-0x7fff6c00038b:  8b f3                    movl     %ebx, %esi
-0x7fff6c00038d:  48 8b fd                 movq     %rbp, %rdi
-0x7fff6c000390:  ba 00 0e 00 00           movl     $0xe00, %edx
-0x7fff6c000395:  48 8d 0d 9e fd ff ff     leaq     -0x262(%rip), %rcx
-0x7fff6c00039c:  ff 15 a6 00 00 00        callq    *0xa6(%rip)
-0x7fff6c0003a2:  8b d8                    movl     %eax, %ebx
-0x7fff6c0003a4:  e9 91 fd ff ff           jmp      0x7fff6c00013a
-0x7fff6c0003a9:  8b f3                    movl     %ebx, %esi
-0x7fff6c0003ab:  48 8b fd                 movq     %rbp, %rdi
-0x7fff6c0003ae:  ba 00 0e 00 00           movl     $0xe00, %edx
-0x7fff6c0003b3:  48 8d 0d f0 fd ff ff     leaq     -0x210(%rip), %rcx
-0x7fff6c0003ba:  ff 15 88 00 00 00        callq    *0x88(%rip)
-0x7fff6c0003c0:  8b d8                    movl     %eax, %ebx
-0x7fff6c0003c2:  e9 e3 fd ff ff           jmp      0x7fff6c0001aa
-0x7fff6c0003c7:  8b f3                    movl     %ebx, %esi
-0x7fff6c0003c9:  48 8b fd                 movq     %rbp, %rdi
-0x7fff6c0003cc:  ba 20 00 00 00           movl     $0x20, %edx
-0x7fff6c0003d1:  48 8d 0d 12 fe ff ff     leaq     -0x1ee(%rip), %rcx
-0x7fff6c0003d8:  ff 15 72 00 00 00        callq    *0x72(%rip)
-0x7fff6c0003de:  44 8b e0                 movl     %eax, %r12d
-0x7fff6c0003e1:  e9 04 fe ff ff           jmp      0x7fff6c0001ea
-0x7fff6c0003e6:  8b f3                    movl     %ebx, %esi
-0x7fff6c0003e8:  41 8b d4                 movl     %r12d, %edx
-0x7fff6c0003eb:  48 8b fd                 movq     %rbp, %rdi
-0x7fff6c0003ee:  b9 00 0e 00 00           movl     $0xe00, %ecx
-0x7fff6c0003f3:  4c 8d 05 29 fe ff ff     leaq     -0x1d7(%rip), %r8
-0x7fff6c0003fa:  ff 15 58 00 00 00        callq    *0x58(%rip)
-0x7fff6c000400:  e9 1e fe ff ff           jmp      0x7fff6c000223
-0x7fff6c000405:  8b f3                    movl     %ebx, %esi
-0x7fff6c000407:  48 8b fd                 movq     %rbp, %rdi
-0x7fff6c00040a:  ba 00 0e 00 00           movl     $0xe00, %edx
-0x7fff6c00040f:  48 8d 0d 7f fe ff ff     leaq     -0x181(%rip), %rcx
-0x7fff6c000416:  ff 15 2c 00 00 00        callq    *0x2c(%rip)
-0x7fff6c00041c:  8b d8                    movl     %eax, %ebx
-0x7fff6c00041e:  e9 72 fe ff ff           jmp      0x7fff6c000295
-0x7fff6c000423:  8b f3                    movl     %ebx, %esi
-0x7fff6c000425:  48 8b fd                 movq     %rbp, %rdi
-0x7fff6c000428:  ba 20 00 00 00           movl     $0x20, %edx
-0x7fff6c00042d:  48 8d 0d a0 fe ff ff     leaq     -0x160(%rip), %rcx
-0x7fff6c000434:  ff 15 16 00 00 00        callq    *0x16(%rip)
-0x7fff6c00043a:  8b d8                    movl     %eax, %ebx
-0x7fff6c00043c:  e9 93 fe ff ff           jmp      0x7fff6c0002d4
-0x7fff6c000441:  90                       nop      
-0x7fff6c000442:  90                       nop      
-0x7fff6c000443:  90                       nop      
-0x7fff6c000444:  90                       nop      
-0x7fff6c000445:  90                       nop      
-0x7fff6c000446:  90                       nop      
-0x7fff6c000447:  90                       nop      
+0x7fff7000039f:  
+OBJD-H: 418bf48bd3488bfdb9000e00004c8d0590fdffffff15af000000e985fdffff8b
+OBJD-H: f3488bfdba000e0000488d0deefdffffff15830000008bd8e9e1fdffff8bf348
+OBJD-H: 8bfdba20000000488d0d10feffffff156d000000448be0e902feffff8bf3418b
+OBJD-H: d4488bfdb9000e00004c8d0527feffffff1553000000e91cfeffff8bf3488bfd
+OBJD-H: ba000e0000488d0d7dfeffffff15270000008bd8e970feffff8bf3488bfdba20
+OBJD-H: 000000488d0d9efeffffff15110000008bd8e991feffff9090
   data: [size=24]
-0x7fff6c000448:  .quad  0x0000555555837f76
-0x7fff6c000450:  .quad  0x0000555555838259
-0x7fff6c000458:  .quad  0x0000555555839045
+0x7fff70000458:  .quad  0x0000555555812fd3
+0x7fff70000460:  .quad  0x00005555558132ca
+0x7fff70000468:  .quad  0x000055555581410b
 

@@ -40,15 +40,15 @@ DECLARE_CLASS_CHECKERS(NesMcuClass, NES6502_MCU,
                        TYPE_NES6502_MCU)
 #define MMC_MAX_PAGE_COUNT 256
 
-static void register_tmr(NesMcuState *s)
-{
-    SysBusDevice *tmr;
-    object_initialize_child(OBJECT(s), "tmr[*]",
-                            &s->tmr, TYPE_RENESAS_TMR);
-    tmr = SYS_BUS_DEVICE(&s->tmr);
-    sysbus_realize(tmr, &error_abort);
-    sysbus_mmio_map(tmr, 0, 0x3000);
-}
+// static void register_tmr(NesMcuState *s)
+// {
+//     SysBusDevice *tmr;
+//     object_initialize_child(OBJECT(s), "tmr[*]",
+//                             &s->tmr, TYPE_RENESAS_TMR);
+//     tmr = SYS_BUS_DEVICE(&s->tmr);
+//     sysbus_realize(tmr, &error_abort);
+//     sysbus_mmio_map(tmr, 0, 0x3000);
+// }
 
 static void nes6502_realize(DeviceState *dev, Error **errp)
 {
@@ -76,7 +76,7 @@ static void nes6502_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->ppu), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu), 0, 0x2000);
 
-    register_tmr(s);
+    // register_tmr(s);
 
     /* PSG IO*/
     object_initialize_child(OBJECT(dev), "kbd", &s->kbd, TYPE_NES_KBD);

@@ -25,14 +25,14 @@
 #include "cpu.h"
 #include "disas/dis-asm.h"
 
-static void avr_cpu_set_pc(CPUState *cs, vaddr value)
+static void nes6502_cpu_set_pc(CPUState *cs, vaddr value)
 {
     NES6502CPU *cpu = NES6502_CPU(cs);
 
     cpu->env.pc_w = value; /* internally PC points to words */
 }
 
-static vaddr avr_cpu_get_pc(CPUState *cs)
+static vaddr nes6502_cpu_get_pc(CPUState *cs)
 {
     NES6502CPU *cpu = NES6502_CPU(cs);
 
@@ -111,7 +111,7 @@ static void nes6502_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
     info->print_insn = nes6502_print_insn;
 }
 
-static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
+static void nes6502_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     NES6502CPUClass *mcc = NES6502_CPU_GET_CLASS(dev);
@@ -128,7 +128,7 @@ static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
     mcc->parent_realize(dev, errp);
 }
 
-static void avr_cpu_set_int(void *opaque, int irq, int level)
+static void nes6502_cpu_set_int(void *opaque, int irq, int level)
 {
     NES6502CPU *cpu = opaque;
     CPUNES6502State *env = &cpu->env;
@@ -153,7 +153,7 @@ static void nes6502_cpu_initfn(Object *obj)
     cpu_set_cpustate_pointers(cpu);
 
     /* Set the number of interrupts supported by the CPU. */
-    qdev_init_gpio_in(DEVICE(cpu), avr_cpu_set_int,
+    qdev_init_gpio_in(DEVICE(cpu), nes6502_cpu_set_int,
                       sizeof(cpu->env.intsrc) * 8);
 }
 
@@ -221,7 +221,7 @@ static const struct TCGCPUOps nes6502_tcg_ops = {
     .synchronize_from_tb = avr_cpu_synchronize_from_tb,
     .restore_state_to_opc = avr_restore_state_to_opc,
     .cpu_exec_interrupt = avr_cpu_exec_interrupt,
-    .tlb_fill = avr_cpu_tlb_fill,
+    .tlb_fill = nes6502_cpu_tlb_fill,
     .do_interrupt = avr_cpu_do_interrupt,
 };
 
@@ -232,7 +232,7 @@ static void nes6502_cpu_class_init(ObjectClass *oc, void *data)
     NES6502CPUClass *mcc = NES6502_CPU_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
-    device_class_set_parent_realize(dc, avr_cpu_realizefn, &mcc->parent_realize);
+    device_class_set_parent_realize(dc, nes6502_cpu_realizefn, &mcc->parent_realize);
 
     resettable_class_set_parent_phases(rc, NULL, avr_cpu_reset_hold, NULL,
                                        &mcc->parent_phases);
@@ -241,8 +241,8 @@ static void nes6502_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->has_work = avr_cpu_has_work;
     cc->dump_state = avr_cpu_dump_state;
-    cc->set_pc = avr_cpu_set_pc;
-    cc->get_pc = avr_cpu_get_pc;
+    cc->set_pc = nes6502_cpu_set_pc;
+    cc->get_pc = nes6502_cpu_get_pc;
     dc->vmsd = &vms_avr_cpu;
     cc->sysemu_ops = &avr_sysemu_ops;
     cc->disas_set_info = nes6502_cpu_disas_set_info;

@@ -199,7 +199,7 @@ static inline void cpu_set_sreg(CPUNES6502State *env, uint8_t sreg)
     env->sregI = (sreg >> 7) & 0x01;
 }
 
-bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+bool nes6502_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr);
 
