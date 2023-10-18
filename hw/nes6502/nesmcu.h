@@ -20,6 +20,7 @@
 #include "nesppu.h"
 #include "nespsg.h"
 #include "hw/timer/renesas_tmr.h"
+#include "nesdisplay.h"
 #define TYPE_NES6502_MCU     "nesmcu"
 
 typedef struct NesMcuState NesMcuState;
@@ -55,6 +56,7 @@ struct NesMcuState {
     int mmc_chr_pages_number;
     struct PPUState ppu;
     struct NesKBDState kbd;
+    struct NES6502FbState nesfb;
 };
 
 #endif /* HW_AVR_ATMEGA_H */

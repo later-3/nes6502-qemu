@@ -32,6 +32,10 @@
         "nesppu.h": "c",
         "avr_usart.h": "c",
         "tcg-op.h": "c",
-        "rx_icu.h": "c"
+        "rx_icu.h": "c",
+        "next-cube.h": "c",
+        "framebuffer.h": "c",
+        "nesdisplay.h": "c",
+        "ppu_interal.h": "c"
     }
 }

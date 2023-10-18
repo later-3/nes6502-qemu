@@ -1,5 +1,6 @@
 config NES6502_MCU
     select NES6502_TIMER16
-
+    select FRAMEBUFFER
+    
 config XIAOBAWANG
     select NES6502_MCU

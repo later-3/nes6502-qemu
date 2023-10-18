@@ -16,7 +16,6 @@
                 "-D", "nes.log",
 
                 "-monitor","tcp:localhost:1236,server=on,wait=off",
-                "-nographic",
                 "-d", "in_asm,out_asm",
                 // "-bios", "/root/Code/qemu-avr-tests/instruction-tests/bin/BA.elf",
                 
@@ -26,6 +25,7 @@
                 // "-M", "gdbsim-r5f562n8",
                 // "-bios", "${workspaceFolder}/u-boot.bin",
                 // "-D", "rx.log"
+                // "-nographic",
 
                 // "-s","-S"
             ],

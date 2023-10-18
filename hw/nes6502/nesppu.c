@@ -1,5 +1,7 @@
 
 #include "nesppu.h"
+#include "ppu_interal.h"
+#include "hal.h"
 
 #ifndef DEBUG_IMX_UART
 #define DEBUG_IMX_UART 0
@@ -16,11 +18,11 @@ byte PPU_RAM[0x4000];
 
 // PPUSTATUS Functions
 
-// inline bool ppu_sprite_overflow()                                   { return common_bit_set(ppu.PPUSTATUS, 5); }
-// inline bool ppu_sprite_0_hit()                                      { return common_bit_set(ppu.PPUSTATUS, 6); }
-// inline bool ppu_in_vblank()                                         { return common_bit_set(ppu.PPUSTATUS, 7); }
+// inline bool ppu_sprite_overflow()                                   { return common_bit_set(ppu->PPUSTATUS, 5); }
+// inline bool ppu_sprite_0_hit()                                      { return common_bit_set(ppu->PPUSTATUS, 6); }
+// inline bool ppu_in_vblank()                                         { return common_bit_set(ppu->PPUSTATUS, 7); }
 
-// inline void ppu_set_sprite_overflow(bool yesno)                     { common_modify_bitb(&ppu.PPUSTATUS, 5, yesno); }
+// inline void ppu_set_sprite_overflow(bool yesno)                     { common_modify_bitb(&ppu->PPUSTATUS, 5, yesno); }
 static inline void ppu_set_sprite_0_hit(PPUState *ppu, bool yesno)          { common_modify_bitb(&ppu->PPUSTATUS, 6, yesno); }
 static inline void ppu_set_in_vblank(PPUState *ppu, bool yesno)            { common_modify_bitb(&ppu->PPUSTATUS, 7, yesno); }
 
@@ -165,9 +167,100 @@ static const struct MemoryRegionOps ppu_ops = {
     },
 };
 
+// Rendering
+static byte ppu_l_h_addition_table[256][256][8];
+static byte ppu_screen_background[264][248];
+
+static bool ppu_shows_background_in_leftmost_8px(PPUState *ppu)                  
+{ 
+    return common_bit_set(ppu->PPUMASK, 1); 
+}
+ 
+static void ppu_draw_background_scanline(PPUState *ppu, bool mirror)
+{
+    int tile_x;
+    for (tile_x = ppu_shows_background_in_leftmost_8px(ppu) ? 0 : 1; tile_x < 32; tile_x++) {
+        // Skipping off-screen pixels
+        if (((tile_x << 3) - ppu->PPUSCROLL_X + (mirror ? 256 : 0)) > 256)
+            continue;
+
+        int tile_y = ppu->scanline >> 3;
+        int tile_index = ppu_ram_read(ppu_base_nametable_address() + tile_x + (tile_y << 5) + (mirror ? 0x400 : 0));
+        word tile_address = ppu_background_pattern_table_address() + 16 * tile_index;
+
+        int y_in_tile = ppu->scanline & 0x7;
+        byte l = ppu_ram_read(tile_address + y_in_tile);
+        byte h = ppu_ram_read(tile_address + y_in_tile + 8);
+
+        int x;
+        for (x = 0; x < 8; x++) {
+            byte color = ppu_l_h_addition_table[l][h][x];
+
+            // Color 0 is transparent
+            if (color != 0) {
+                
+                word attribute_address = (ppu_base_nametable_address() + (mirror ? 0x400 : 0) + 0x3C0 + (tile_x >> 2) + (ppu->scanline >> 5) * 8);
+                bool top = (ppu->scanline % 32) < 16;
+                bool left = (tile_x % 4 < 2);
+
+                byte palette_attribute = ppu_ram_read(attribute_address);
+
+                if (!top) {
+                    palette_attribute >>= 4;
+                }
+                if (!left) {
+                    palette_attribute >>= 2;
+                }
+                palette_attribute &= 3;
+
+                word palette_address = 0x3F00 + (palette_attribute << 2);
+                int idx = ppu_ram_read(palette_address + color);
+
+                ppu_screen_background[(tile_x << 3) + x][ppu->scanline] = color;
+                
+                pixbuf_add(bg, (tile_x << 3) + x - ppu->PPUSCROLL_X + (mirror ? 256 : 0), ppu->scanline + 1, idx);
+            }
+        }
+    }
+}
+
+static void ppu_cycle(void *opaque)
+{
+    PPUState *ppu = opaque;
+    printf("ppu_cycle\n");
+
+    if (!ppu->ready && cpu_clock() > 29658)
+        ppu->ready = true;
+
+    ppu->scanline++;
+    if (ppu_shows_background()) {
+        ppu_draw_background_scanline(ppu, false);
+        ppu_draw_background_scanline(ppu, true);
+    }
+    
+    if (ppu_shows_sprites()) ppu_draw_sprite_scanline();
+
+    if (ppu->scanline == 241) {
+        ppu_set_in_vblank(ppu, true);
+        ppu_set_sprite_0_hit(ppu, false);
+        cpu_interrupt();
+    }
+    else if (ppu->scanline == 262) {
+        ppu->scanline = -1;
+        ppu_sprite_hit_occured = false;
+        ppu_set_in_vblank(ppu, false);
+        fce_update_screen();
+    }
+
+    timer_mod(ppu->ts, 1000);
+}
+
 static void ppu_realize(DeviceState *dev, Error **errp)
 {
-
+    PPUState *ppu = NES_PPU(dev);
+    ppu->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, ppu_cycle, ppu);
+    timer_mod(ppu->ts, 1000);
+    // int64_t now = qemu_clock_get_ns(100);
 }
 
 static void ppu_init(Object *obj)

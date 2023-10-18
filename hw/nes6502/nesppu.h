@@ -38,6 +38,7 @@ struct PPUState {
     int mirroring, mirroring_xor;
 
     int x, scanline;
+    QEMUTimer *ts;
 };
 
 
