@@ -81,9 +81,9 @@ static int fce_load_rom(char *rom, NesMcuState *s)
         romread(rom, buf, 0x2000);
         mmc_append_chr_rom_page(buf, WORK_RAM_SIZE, &s->mmc_chr_pages_number);
 
-        // if (i == 0) {
-        //     ppu_copy(0x0000, buf, 0x2000);
-        // }
+        if (i == 0) {
+            ppu_copy(0x0000, buf, 0x2000);
+        }
     }
 
     return 0;

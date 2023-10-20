@@ -97,6 +97,11 @@ static word ppu_get_real_ram_address(word address)
     return 0xFFFF;
 }
 
+void ppu_copy(word address, byte *source, int length)
+{
+    memcpy(&PPU_RAM[address], source, length);
+}
+
 static void ppu_ram_write(word address, byte data)
 {
     PPU_RAM[ppu_get_real_ram_address(address)] = data;
@@ -170,12 +175,58 @@ static const struct MemoryRegionOps ppu_ops = {
 // Rendering
 static byte ppu_l_h_addition_table[256][256][8];
 static byte ppu_screen_background[264][248];
+static byte ppu_l_h_addition_flip_table[256][256][8];
 
 static bool ppu_shows_background_in_leftmost_8px(PPUState *ppu)                  
 { 
     return common_bit_set(ppu->PPUMASK, 1); 
 }
- 
+
+static byte ppu_ram_read(word address)
+{
+    return PPU_RAM[ppu_get_real_ram_address(address)];
+}
+
+static const word ppu_base_nametable_addresses[4] = { 0x2000, 0x2400, 0x2800, 0x2C00 };
+
+static word ppu_base_nametable_address(PPUState *ppu)                            
+{ 
+    return ppu_base_nametable_addresses[ppu->PPUCTRL & 0x3];  
+}
+
+static word ppu_background_pattern_table_address(PPUState *ppu)                  
+{ 
+    return common_bit_set(ppu->PPUCTRL, 4) ? 0x1000 : 0x0000; 
+}
+
+static bool ppu_shows_background(PPUState *ppu)                                  
+{ 
+    return common_bit_set(ppu->PPUMASK, 3); 
+}
+
+static bool ppu_shows_sprites(PPUState *ppu)                                     
+{ 
+    return common_bit_set(ppu->PPUMASK, 4); 
+}
+
+static byte ppu_sprite_height(PPUState *ppu)                                     
+{ 
+    return common_bit_set(ppu->PPUCTRL, 5) ? 16 : 8;          
+}
+
+static bool ppu_generates_nmi(PPUState *ppu)                                     
+{ 
+    return common_bit_set(ppu->PPUCTRL, 7);                   
+}
+
+// PPUSTATUS Functions
+
+// static bool ppu_sprite_overflow(PPUState *ppu)                                   { return common_bit_set(ppu->PPUSTATUS, 5); }
+// static bool ppu_sprite_0_hit(PPUState *ppu)                                      { return common_bit_set(ppu->PPUSTATUS, 6); }
+// static bool ppu_in_vblank(PPUState *ppu)                                         { return common_bit_set(ppu->PPUSTATUS, 7); }
+static word ppu_sprite_pattern_table_address(PPUState *ppu)                      { return common_bit_set(ppu->PPUCTRL, 3) ? 0x1000 : 0x0000; }
+static void ppu_set_sprite_overflow(PPUState *ppu, bool yesno)                     { common_modify_bitb(&ppu->PPUSTATUS, 5, yesno); }
+
 static void ppu_draw_background_scanline(PPUState *ppu, bool mirror)
 {
     int tile_x;
@@ -185,8 +236,8 @@ static void ppu_draw_background_scanline(PPUState *ppu, bool mirror)
             continue;
 
         int tile_y = ppu->scanline >> 3;
-        int tile_index = ppu_ram_read(ppu_base_nametable_address() + tile_x + (tile_y << 5) + (mirror ? 0x400 : 0));
-        word tile_address = ppu_background_pattern_table_address() + 16 * tile_index;
+        int tile_index = ppu_ram_read(ppu_base_nametable_address(ppu) + tile_x + (tile_y << 5) + (mirror ? 0x400 : 0));
+        word tile_address = ppu_background_pattern_table_address(ppu) + 16 * tile_index;
 
         int y_in_tile = ppu->scanline & 0x7;
         byte l = ppu_ram_read(tile_address + y_in_tile);
@@ -199,7 +250,7 @@ static void ppu_draw_background_scanline(PPUState *ppu, bool mirror)
             // Color 0 is transparent
             if (color != 0) {
                 
-                word attribute_address = (ppu_base_nametable_address() + (mirror ? 0x400 : 0) + 0x3C0 + (tile_x >> 2) + (ppu->scanline >> 5) * 8);
+                word attribute_address = (ppu_base_nametable_address(ppu) + (mirror ? 0x400 : 0) + 0x3C0 + (tile_x >> 2) + (ppu->scanline >> 5) * 8);
                 bool top = (ppu->scanline % 32) < 16;
                 bool left = (tile_x % 4 < 2);
 
@@ -224,42 +275,115 @@ static void ppu_draw_background_scanline(PPUState *ppu, bool mirror)
     }
 }
 
+static void ppu_draw_sprite_scanline(PPUState *ppu)
+{
+    int scanline_sprite_count = 0;
+    int n;
+    for (n = 0; n < 0x100; n += 4) {
+        byte sprite_x = PPU_SPRRAM[n + 3];
+        byte sprite_y = PPU_SPRRAM[n];
+
+        // Skip if sprite not on scanline
+        if (sprite_y > ppu->scanline || sprite_y + ppu_sprite_height(ppu) < ppu->scanline)
+           continue;
+
+        scanline_sprite_count++;
+
+        // PPU can't render > 8 sprites
+        if (scanline_sprite_count > 8) {
+            ppu_set_sprite_overflow(ppu, true);
+            // break;
+        }
+
+        bool vflip = PPU_SPRRAM[n + 2] & 0x80;
+        bool hflip = PPU_SPRRAM[n + 2] & 0x40;
+
+        word tile_address = ppu_sprite_pattern_table_address(ppu) + 16 * PPU_SPRRAM[n + 1];
+        int y_in_tile = ppu->scanline & 0x7;
+        byte l = ppu_ram_read(tile_address + (vflip ? (7 - y_in_tile) : y_in_tile));
+        byte h = ppu_ram_read(tile_address + (vflip ? (7 - y_in_tile) : y_in_tile) + 8);
+
+        byte palette_attribute = PPU_SPRRAM[n + 2] & 0x3;
+        word palette_address = 0x3F10 + (palette_attribute << 2);
+        int x;
+        for (x = 0; x < 8; x++) {
+            int color = hflip ? ppu_l_h_addition_flip_table[l][h][x] : ppu_l_h_addition_table[l][h][x];
+
+            // Color 0 is transparent
+            if (color != 0) {
+                int screen_x = sprite_x + x;
+                int idx = ppu_ram_read(palette_address + color);
+                
+                if (PPU_SPRRAM[n + 2] & 0x20) {
+                    pixbuf_add(bbg, screen_x, sprite_y + y_in_tile + 1, idx);
+                }
+                else {
+                    pixbuf_add(fg, screen_x, sprite_y + y_in_tile + 1, idx);
+                }
+
+                // Checking sprite 0 hit
+                if (ppu_shows_background(ppu) && !ppu_sprite_hit_occured && n == 0 && ppu_screen_background[screen_x][sprite_y + y_in_tile] == color) {
+                    ppu_set_sprite_0_hit(ppu, true);
+                    ppu_sprite_hit_occured = true;
+                }
+            }
+        }
+    }
+}
+
+static void cpu_interrupt(PPUState *ppu)
+{
+    // if (ppu_in_vblank()) {
+        if (ppu_generates_nmi(ppu)) {
+            static int a = 1;
+            if (a == 1) {
+                qemu_irq_pulse(ppu->irq);
+                a++;
+            }
+            // cpu.P |= interrupt_flag;
+            // cpu_unset_flag(unused_bp);
+            // cpu_stack_pushw(cpu.PC);
+            // cpu_stack_pushb(cpu.P);
+            // cpu.PC = cpu_nmi_interrupt_address();
+        }
+    // }
+}
+
 static void ppu_cycle(void *opaque)
 {
     PPUState *ppu = opaque;
     printf("ppu_cycle\n");
-
-    if (!ppu->ready && cpu_clock() > 29658)
-        ppu->ready = true;
+    // if (!ppu->ready && cpu_clock() > 29658)
+    //     ppu->ready = true;
 
     ppu->scanline++;
-    if (ppu_shows_background()) {
+    if (ppu_shows_background(ppu)) {
         ppu_draw_background_scanline(ppu, false);
         ppu_draw_background_scanline(ppu, true);
     }
     
-    if (ppu_shows_sprites()) ppu_draw_sprite_scanline();
+    if (ppu_shows_sprites(ppu)) ppu_draw_sprite_scanline(ppu);
 
     if (ppu->scanline == 241) {
         ppu_set_in_vblank(ppu, true);
         ppu_set_sprite_0_hit(ppu, false);
-        cpu_interrupt();
+        cpu_interrupt(ppu);
     }
     else if (ppu->scanline == 262) {
         ppu->scanline = -1;
         ppu_sprite_hit_occured = false;
         ppu_set_in_vblank(ppu, false);
-        fce_update_screen();
+        // fce_update_screen();
     }
 
-    timer_mod(ppu->ts, 1000);
+    timer_mod(ppu->ts, 100000000000000);
 }
 
 static void ppu_realize(DeviceState *dev, Error **errp)
 {
     PPUState *ppu = NES_PPU(dev);
     ppu->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, ppu_cycle, ppu);
-    timer_mod(ppu->ts, 1000);
+    timer_mod(ppu->ts, 10000000000000);
     // int64_t now = qemu_clock_get_ns(100);
 }
 
@@ -271,6 +395,7 @@ static void ppu_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &ppu_ops, s,
                           TYPE_NES_PPU, 0x2000);
     sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
 }
 
 static void ppu_class_init(ObjectClass *klass, void *data)

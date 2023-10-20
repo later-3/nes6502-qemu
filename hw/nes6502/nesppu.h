@@ -39,7 +39,8 @@ struct PPUState {
 
     int x, scanline;
     QEMUTimer *ts;
+    qemu_irq irq;
 };
-
+void ppu_copy(word address, byte *source, int length);
 
 #endif

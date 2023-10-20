@@ -36,6 +36,9 @@
         "next-cube.h": "c",
         "framebuffer.h": "c",
         "nesdisplay.h": "c",
-        "ppu_interal.h": "c"
+        "ppu_interal.h": "c",
+        "*.def": "c",
+        "avr_power.h": "c",
+        "avr_timer16.h": "c"
     }
 }

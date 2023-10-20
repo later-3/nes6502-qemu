@@ -50,6 +50,107 @@ DECLARE_CLASS_CHECKERS(NesMcuClass, NES6502_MCU,
 //     sysbus_mmio_map(tmr, 0, 0x3000);
 // }
 
+static void nes_irq(void *opaque, int number, int level)
+{
+    NesMcuState *s = NES6502_MCU(opaque);
+    NES6502CPU *cpu = &s->cpu;
+    // int shift = 0;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+
+    // /* first switch sets interupt status */
+    // /* DPRINTF("IRQ %i\n",number); */
+    // switch (number) {
+    // /* level 3 - floppy, kbd/mouse, power, ether rx/tx, scsi, clock */
+    // case NEXT_FD_I:
+    //     shift = 7;
+    //     break;
+    // case NEXT_KBD_I:
+    //     shift = 3;
+    //     break;
+    // case NEXT_PWR_I:
+    //     shift = 2;
+    //     break;
+    // case NEXT_ENRX_I:
+    //     shift = 9;
+    //     break;
+    // case NEXT_ENTX_I:
+    //     shift = 10;
+    //     break;
+    // case NEXT_SCSI_I:
+    //     shift = 12;
+    //     break;
+    // case NEXT_CLK_I:
+    //     shift = 5;
+    //     break;
+
+    // /* level 5 - scc (serial) */
+    // case NEXT_SCC_I:
+    //     shift = 17;
+    //     break;
+
+    // /* level 6 - audio etherrx/tx dma */
+    // case NEXT_ENTX_DMA_I:
+    //     shift = 28;
+    //     break;
+    // case NEXT_ENRX_DMA_I:
+    //     shift = 27;
+    //     break;
+    // case NEXT_SCSI_DMA_I:
+    //     shift = 26;
+    //     break;
+    // case NEXT_SND_I:
+    //     shift = 23;
+    //     break;
+    // case NEXT_SCC_DMA_I:
+    //     shift = 21;
+    //     break;
+
+    // }
+    // /*
+    //  * this HAS to be wrong, the interrupt handlers in mach and together
+    //  * int_status and int_mask and return if there is a hit
+    //  */
+    // if (s->int_mask & (1 << shift)) {
+    //     DPRINTF("%x interrupt masked @ %x\n", 1 << shift, cpu->env.pc);
+    //     /* return; */
+    // }
+
+    // /* second switch triggers the correct interrupt */
+    // if (level) {
+    //     s->int_status |= 1 << shift;
+
+    //     switch (number) {
+    //     /* level 3 - floppy, kbd/mouse, power, ether rx/tx, scsi, clock */
+    //     case NEXT_FD_I:
+    //     case NEXT_KBD_I:
+    //     case NEXT_PWR_I:
+    //     case NEXT_ENRX_I:
+    //     case NEXT_ENTX_I:
+    //     case NEXT_SCSI_I:
+    //     case NEXT_CLK_I:
+    //         m68k_set_irq_level(cpu, 3, 27);
+    //         break;
+
+    //     /* level 5 - scc (serial) */
+    //     case NEXT_SCC_I:
+    //         m68k_set_irq_level(cpu, 5, 29);
+    //         break;
+
+    //     /* level 6 - audio etherrx/tx dma */
+    //     case NEXT_ENTX_DMA_I:
+    //     case NEXT_ENRX_DMA_I:
+    //     case NEXT_SCSI_DMA_I:
+    //     case NEXT_SND_I:
+    //     case NEXT_SCC_DMA_I:
+    //         m68k_set_irq_level(cpu, 6, 30);
+    //         break;
+    //     }
+    // } else {
+    //     s->int_status &= ~(1 << shift);
+    //     
+    // }
+}
+
 static void nes6502_realize(DeviceState *dev, Error **errp)
 {
     NesMcuState *s = NES6502_MCU(dev);
@@ -70,11 +171,14 @@ static void nes6502_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->cpu_ram, OBJECT(dev), "cpu_ram", mc->cpu_ram_size, &error_abort);
     memory_region_add_subregion(get_system_memory(), RAM_ADDR, &s->cpu_ram);
 
+    qdev_init_gpio_in(dev, nes_irq, 10);
+
     /* PPU IO*/
     /* PPU controller*/
     object_initialize_child(OBJECT(dev), "ppu", &s->ppu, TYPE_NES_PPU);
     sysbus_realize(SYS_BUS_DEVICE(&s->ppu), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu), 0, 0x2000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->ppu), 0, qdev_get_gpio_in(dev, 0));
 
     // register_tmr(s);
 

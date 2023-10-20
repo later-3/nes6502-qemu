@@ -57,6 +57,7 @@ struct NesMcuState {
     struct PPUState ppu;
     struct NesKBDState kbd;
     struct NES6502FbState nesfb;
+    qemu_irq irq;
 };
 
 #endif /* HW_AVR_ATMEGA_H */
