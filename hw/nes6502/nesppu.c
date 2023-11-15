@@ -376,14 +376,14 @@ static void ppu_cycle(void *opaque)
         // fce_update_screen();
     }
 
-    timer_mod(ppu->ts, 100000000000000);
+    timer_mod(ppu->ts, 100000000000);
 }
 
 static void ppu_realize(DeviceState *dev, Error **errp)
 {
     PPUState *ppu = NES_PPU(dev);
     ppu->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, ppu_cycle, ppu);
-    timer_mod(ppu->ts, 10000000000000);
+    timer_mod(ppu->ts, 10000000000);
     // int64_t now = qemu_clock_get_ns(100);
 }
 

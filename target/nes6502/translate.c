@@ -201,8 +201,8 @@ static void cpu_address_zero_page_y(uint8_t imm)
 
 static void cpu_address_absolute(uint16_t addr)
 {
-    // tcg_gen_movi_tl(op_address, addr);
-    // tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_8);
+    tcg_gen_movi_tl(op_address, addr);
+    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_8);
     
     
     // TCGv mem;
@@ -210,13 +210,13 @@ static void cpu_address_absolute(uint16_t addr)
     // tcg_gen_movi_tl(mem, 0x2002);
     // tcg_gen_qemu_ld_i32(op_value, mem, 0, MO_32);
 
-    TCGv mem;
-    mem = tcg_temp_new();
-    tcg_gen_movi_tl(mem, 0x2002);
-    tcg_gen_qemu_ld_tl(op_value, mem, 0, MO_8);
+    // TCGv mem;
+    // mem = tcg_temp_new();
+    // tcg_gen_movi_tl(mem, 0x2002);
+    // tcg_gen_qemu_ld_tl(op_value, mem, 0, MO_8);
 
-    tcg_gen_movi_tl(op_address, 0x2000);
-    tcg_gen_qemu_ld_i32(op_value, op_address, 0, MO_32);
+    // tcg_gen_movi_tl(op_address, 0x2000);
+    // tcg_gen_qemu_ld_i32(op_value, op_address, 0, MO_32);
 
     // int val = 0x123456;
     // address_space_read(&address_space_memory, 0x2000,
@@ -1611,15 +1611,15 @@ static bool trans_SED(DisasContext *ctx, arg_SED *a)
 
 static bool trans_SEI(DisasContext *ctx, arg_SEI *a)
 {
-    TCGv mem;
-    mem = tcg_temp_new();
-    tcg_gen_movi_tl(mem, 0x2000);
+    // TCGv mem;
+    // mem = tcg_temp_new();
+    // tcg_gen_movi_tl(mem, 0x2000);
 
-    TCGv reg;
-    reg = tcg_temp_new();
-    tcg_gen_movi_tl(reg, 0x10);
+    // TCGv reg;
+    // reg = tcg_temp_new();
+    // tcg_gen_movi_tl(reg, 0x10);
 
-    tcg_gen_qemu_st_tl(reg, mem, 0, MO_8);
+    // tcg_gen_qemu_st_tl(reg, mem, 0, MO_8);
 
     tcg_gen_movi_tl(cpu_interrupt_flag, 1);
 
@@ -1921,6 +1921,11 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
     return true;
 }
 
+static FILE *g_fp;
+static void init_log()
+{
+   g_fp = fopen("./log.txt", "w+");
+}
 
 /*
  *  Core translation mechanism functions:
