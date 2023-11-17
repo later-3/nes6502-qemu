@@ -1921,11 +1921,11 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
     return true;
 }
 
-static FILE *g_fp;
-static void init_log()
-{
-   g_fp = fopen("./log.txt", "w+");
-}
+// static FILE *g_fp;
+// static void init_log(void)
+// {
+//    g_fp = fopen("./log.txt", "w+");
+// }
 
 /*
  *  Core translation mechanism functions:

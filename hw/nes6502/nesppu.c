@@ -396,6 +396,23 @@ static void ppu_init(Object *obj)
                           TYPE_NES_PPU, 0x2000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+
+
+    s->PPUCTRL = s->PPUMASK = s->PPUSTATUS = s->OAMADDR = s->PPUSCROLL_X = s->PPUSCROLL_Y = s->PPUADDR = 0;
+    s->PPUSTATUS |= 0xA0;
+    s->PPUDATA = 0;
+    ppu_2007_first_read = true;
+
+    // Initializing low-high byte-pairs for pattern tables
+    int h, l, x;
+    for (h = 0; h < 0x100; h++) {
+        for (l = 0; l < 0x100; l++) {
+            for (x = 0; x < 8; x++) {
+                ppu_l_h_addition_table[l][h][x] = (((h >> (7 - x)) & 1) << 1) | ((l >> (7 - x)) & 1);
+                ppu_l_h_addition_flip_table[l][h][x] = (((h >> x) & 1) << 1) | ((l >> x) & 1);
+            }
+        }
+    }
 }
 
 static void ppu_class_init(ObjectClass *klass, void *data)
