@@ -342,17 +342,23 @@ static void cpu_update_z_flags(TCGv r)
 
 static void cpu_update_n_flags(TCGv r)
 {
-
+// gen_helper_print_opval(cpu_env, r);
+//     TCGv tt = tcg_temp_new();
+//     tcg_gen_movi_i32(tt, 7);
+// gen_helper_print_flag(cpu_env, cpu_negative_flag, tt);
     TCGLabel *t, *done;
 
     t = gen_new_label();
     done = gen_new_label();
-    tcg_gen_brcondi_i32(TCG_COND_GE, r, 127, t);
+    tcg_gen_brcondi_i32(TCG_COND_GTU, r, 127, t);
     tcg_gen_movi_i32(cpu_negative_flag, 0);
     tcg_gen_br(done);
     gen_set_label(t);
     tcg_gen_movi_i32(cpu_negative_flag, 1);
     gen_set_label(done);
+
+// gen_helper_print_flag(cpu_env, cpu_negative_flag, tt);
+
 }
 
 static void cpu_update_zn_flags(TCGv r)
@@ -595,6 +601,11 @@ static bool trans_BCS(DisasContext *ctx, arg_BCS *a)
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_carry_flag, tmp, 1);
 
+    TCGv t = tcg_temp_new();
+    tcg_gen_movi_i32(t, 0);
+    gen_helper_print_flag(cpu_env, cpu_carry_flag, t);
+
+    printf("bcs imm %d\n", a->imm);
     cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
@@ -847,7 +858,7 @@ static bool trans_LDA_ABSOLUTE(DisasContext *ctx, arg_LDA_ABSOLUTE *a)
     cpu_address_absolute( a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_A, op_value);
     // gen_helper_print_opval(cpu_env, op_value);
-    cpu_update_zn_flags(cpu_A);
+    cpu_update_zn_flags(cpu_A);    
     return true;
 }
 
@@ -855,7 +866,15 @@ static bool trans_LDA_ABSOLUTE_X(DisasContext *ctx, arg_LDA_ABSOLUTE_X *a)
 {
     cpu_address_absolute_x( a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_A, op_value);
+
+        TCGv tt = tcg_temp_new();
+    tcg_gen_movi_i32(tt, 0);
+    gen_helper_print_flag(cpu_env, cpu_carry_flag, tt);
+
     cpu_update_zn_flags(cpu_A);
+
+    gen_helper_print_flag(cpu_env, cpu_carry_flag, tt);
+
     return true;
 }
 
@@ -1634,14 +1653,14 @@ static void cpu_compare(TCGv reg)
 {
     TCGv result = tcg_temp_new();
     tcg_gen_sub_tl(result, reg, op_value);
-
-    TCGv con = tcg_temp_new();
+gen_helper_print_opval(cpu_env, op_value);
+    // TCGv con = tcg_temp_new();
     
-    tcg_gen_setcondi_tl(TCG_COND_GE, con, result, 0);
-    cpu_modify_flag(cpu_carry_flag, con);
+    tcg_gen_setcondi_tl(TCG_COND_GE, cpu_carry_flag, result, 0);
+    // cpu_modify_flag(cpu_carry_flag, con);
     
-    tcg_gen_setcondi_tl(TCG_COND_EQ, con, result, 0);
-    cpu_modify_flag(cpu_zero_flag, con);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, result, 0);
+    // cpu_modify_flag(cpu_zero_flag, con);
 
     tcg_gen_shri_tl(result, result, 7);
     tcg_gen_andi_tl(result, result, 0x1);
@@ -1650,6 +1669,7 @@ static void cpu_compare(TCGv reg)
 
 static bool trans_CMP_IM(DisasContext *ctx, arg_CMP_IM *a)
 {
+    tcg_gen_movi_i32(op_value, a->imm);
     cpu_compare(cpu_A);
     return true;
 }
@@ -1706,6 +1726,7 @@ static bool trans_CMP_INDIRECT_Y(DisasContext *ctx, arg_CMP_INDIRECT_Y *a)
 
 static bool trans_CPX_IM(DisasContext *ctx, arg_CPX_IM *a)
 {
+    tcg_gen_movi_i32(op_value, a->imm);
     cpu_compare(cpu_X);
     return true;
 }
@@ -1729,6 +1750,7 @@ static bool trans_CPX_ABSOLUTE(DisasContext *ctx, arg_CPX_ABSOLUTE *a)
 
 static bool trans_CPY_IM(DisasContext *ctx, arg_CPY_IM *a)
 {
+    tcg_gen_movi_i32(op_value, a->imm);
     cpu_compare(cpu_Y);
 
     return true;

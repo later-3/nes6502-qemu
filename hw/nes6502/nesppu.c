@@ -23,8 +23,11 @@ byte PPU_RAM[0x4000];
 // inline bool ppu_in_vblank()                                         { return common_bit_set(ppu->PPUSTATUS, 7); }
 
 // inline void ppu_set_sprite_overflow(bool yesno)                     { common_modify_bitb(&ppu->PPUSTATUS, 5, yesno); }
-static inline void ppu_set_sprite_0_hit(PPUState *ppu, bool yesno)          { common_modify_bitb(&ppu->PPUSTATUS, 6, yesno); }
-static inline void ppu_set_in_vblank(PPUState *ppu, bool yesno)            { common_modify_bitb(&ppu->PPUSTATUS, 7, yesno); }
+static  void ppu_set_sprite_0_hit(PPUState *ppu, bool yesno)          { common_modify_bitb(&ppu->PPUSTATUS, 6, yesno); }
+static  void ppu_set_in_vblank(PPUState *ppu, bool yesno)            
+{ 
+    common_modify_bitb(&ppu->PPUSTATUS, 7, yesno); 
+}
 
 
 static uint64_t ppu_read(void *opaque, hwaddr offset,
@@ -33,6 +36,11 @@ static uint64_t ppu_read(void *opaque, hwaddr offset,
     PPUState *ppu = opaque;
     word address = offset + 0x2000;
     ppu->PPUADDR &= 0x3FFF;
+    // static int b = 0;
+    // if (b == 0) {
+    //     timer_mod(ppu->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 10000000);
+    //     b+=1;
+    // }
     switch (address & 7) {
         case 2:
         {
@@ -352,7 +360,7 @@ static void cpu_interrupt(PPUState *ppu)
 static void ppu_cycle(void *opaque)
 {
     PPUState *ppu = opaque;
-    printf("ppu_cycle\n");
+    // printf("ppu_cycle\n");
     // if (!ppu->ready && cpu_clock() > 29658)
     //     ppu->ready = true;
 
@@ -375,16 +383,25 @@ static void ppu_cycle(void *opaque)
         ppu_set_in_vblank(ppu, false);
         // fce_update_screen();
     }
-
-    timer_mod(ppu->ts, 100000000000);
+    int64_t cur = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    timer_mod(ppu->ts, cur + 10000000);
 }
 
 static void ppu_realize(DeviceState *dev, Error **errp)
 {
     PPUState *ppu = NES_PPU(dev);
-    ppu->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, ppu_cycle, ppu);
-    timer_mod(ppu->ts, 10000000000);
+    ppu->ts = timer_new_ns(QEMU_CLOCK_REALTIME, ppu_cycle, ppu);
     // int64_t now = qemu_clock_get_ns(100);
+    int64_t cur = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    // cur = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    timer_mod(ppu->ts, cur + 10000000);
+
+}
+
+static void ppu_post_init(Object *obj)
+{
+    PPUState *s = NES_PPU(obj);
+    timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 10000000);
 }
 
 static void ppu_init(Object *obj)
@@ -415,11 +432,18 @@ static void ppu_init(Object *obj)
     }
 }
 
+static void ppu_reset(DeviceState *dev)
+{
+    // PPUState *s = NES_PPU(dev);
+    // timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 10000000);
+}
+
 static void ppu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ppu_realize;
+    dc->reset = ppu_reset;
     dc->desc = "xiaobawang nes ppu";
 }
 static const TypeInfo nes_ppu_info = {
@@ -427,8 +451,10 @@ static const TypeInfo nes_ppu_info = {
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(PPUState),
     .instance_init  = ppu_init,
+    .instance_finalize = ppu_post_init,
     .class_init     = ppu_class_init,
 };
+    // .instance_post_init = ppu_post_init,
 
 static void nes_ppu_register_types(void)
 {
