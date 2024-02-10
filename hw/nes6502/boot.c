@@ -93,7 +93,10 @@ static void do_cpu_reset(void *opaque)
 {
     NES6502CPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
-    cpu_set_pc(cs, 0x8000);
+    uint16_t value;
+    address_space_read(&address_space_memory, 0xFFFC, MEMTXATTRS_UNSPECIFIED,
+                             &value, 2);
+    cpu_set_pc(cs, value);
 }
 
 bool nes6502_load_firmware(NES6502CPU *cpu, NesMcuState *s,

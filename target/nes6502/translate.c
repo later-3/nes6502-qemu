@@ -322,7 +322,7 @@ static void cpu_flag_set(TCGv flag, TCGv res, int value)
 
 static void cpu_modify_flag(TCGv flag, TCGv res)
 {
-    tcg_gen_setcondi_tl(TCG_COND_EQ, flag, res, 1);
+    tcg_gen_setcondi_tl(TCG_COND_GT, flag, res, 0);
 }
 
 static void cpu_update_z_flags(TCGv r)
@@ -603,9 +603,9 @@ static bool trans_BCS(DisasContext *ctx, arg_BCS *a)
 
     TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 0);
-    gen_helper_print_flag(cpu_env, cpu_carry_flag, t);
+    // gen_helper_print_flag(cpu_env, cpu_carry_flag, t);
 
-    printf("bcs imm %d\n", a->imm);
+    // printf("bcs imm %d\n", a->imm);
     cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
     return true;
 }
@@ -645,12 +645,16 @@ static bool trans_BVS(DisasContext *ctx, arg_BVS *a)
 
 static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
 {
-    cpu_address_relative(a->imm);
+    int addr = cpu_address_relative(a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_zero_flag, tmp, 0);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
+    TCGv t = tcg_temp_new();
+    tcg_gen_movi_i32(t, 1);
+    // gen_helper_print_flag(cpu_env, cpu_zero_flag, t);
+
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
@@ -811,6 +815,7 @@ static bool trans_RTS(DisasContext *ctx, arg_RTS *a)
     TCGv val = tcg_temp_new();
     cpu_stack_popw(val);
     tcg_gen_addi_tl(cpu_pc, val, 1);
+    ctx->base.is_jmp = DISAS_JUMP;
     return true;
 }
 
@@ -869,11 +874,11 @@ static bool trans_LDA_ABSOLUTE_X(DisasContext *ctx, arg_LDA_ABSOLUTE_X *a)
 
         TCGv tt = tcg_temp_new();
     tcg_gen_movi_i32(tt, 0);
-    gen_helper_print_flag(cpu_env, cpu_carry_flag, tt);
+    // gen_helper_print_flag(cpu_env, cpu_carry_flag, tt);
 
     cpu_update_zn_flags(cpu_A);
 
-    gen_helper_print_flag(cpu_env, cpu_carry_flag, tt);
+    // gen_helper_print_flag(cpu_env, cpu_carry_flag, tt);
 
     return true;
 }
@@ -904,6 +909,7 @@ static bool trans_LDA_INDIRECT_Y(DisasContext *ctx, arg_LDA_INDIRECT_Y *a)
 
 static bool trans_LDX_IM(DisasContext *ctx, arg_LDX_IM *a)
 {
+    printf("trans_LDX_IM a->imm%d\n", a->imm);
     tcg_gen_movi_i32(cpu_X, a->imm);
     cpu_update_zn_flags(cpu_X);
     return true;
@@ -911,6 +917,7 @@ static bool trans_LDX_IM(DisasContext *ctx, arg_LDX_IM *a)
 
 static bool trans_LDX_ZEROPAGE(DisasContext *ctx, arg_LDX_ZEROPAGE *a)
 {
+    printf("trans_LDX_ZEROPAGE\n");
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_X, op_value);
     cpu_update_zn_flags(cpu_X);
@@ -919,6 +926,7 @@ static bool trans_LDX_ZEROPAGE(DisasContext *ctx, arg_LDX_ZEROPAGE *a)
 
 static bool trans_LDX_ZEROPAGE_Y(DisasContext *ctx, arg_LDX_ZEROPAGE_Y *a)
 {
+        printf("trans_LDX_ZEROPAGE_Y\n");
     cpu_address_zero_page_y(a->imm);
     tcg_gen_mov_tl(cpu_X, op_value);
     cpu_update_zn_flags(cpu_X);
@@ -927,6 +935,7 @@ static bool trans_LDX_ZEROPAGE_Y(DisasContext *ctx, arg_LDX_ZEROPAGE_Y *a)
 
 static bool trans_LDX_ABSOLUTE(DisasContext *ctx, arg_LDX_ABSOLUTE *a)
 {
+    printf("trans_LDX_ABSOLUTE\n");
     cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_X, op_value);
     cpu_update_zn_flags(cpu_X);
@@ -1573,21 +1582,43 @@ static bool trans_ROR_ABSOLUTE_X(DisasContext *ctx, arg_ROR_ABSOLUTE_X *a)
     return true;
 }
 
-static bool trans_BIT_ZEROPAGE(DisasContext *ctx, arg_BIT_ZEROPAGE *a)
+// static void print_neg(void)
+// {
+//     TCGv t = tcg_temp_new();
+//     tcg_gen_movi_i32(t, 7);
+//     gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
+// }
+
+static void bit_common(void)
 {
-    cpu_address_zero_page(a->imm);
     TCGv t = tcg_temp_new();
     tcg_gen_and_tl(t, cpu_A, op_value);
 
     tcg_gen_not_tl(t, t);
     cpu_modify_flag(cpu_zero_flag, t);
+    // print_neg();
+    tcg_gen_andi_tl(t, op_value, 0x80);
+    cpu_modify_flag(cpu_negative_flag, t);
+    // print_neg();
 
+    tcg_gen_andi_tl(t, op_value, 0x40);
+    cpu_modify_flag(cpu_overflow_flag, t);
+}
+
+static bool trans_BIT_ZEROPAGE(DisasContext *ctx, arg_BIT_ZEROPAGE *a)
+{
+    cpu_address_zero_page(a->imm);
+
+    bit_common();
     return true;
 }
 
 
 static bool trans_BIT_ABSOLUTE(DisasContext *ctx, arg_BIT_ABSOLUTE *a)
 {
+    cpu_address_absolute(a->addr2 <<8 | a->addr1);
+
+    bit_common();
     return true;
 }
 
@@ -1653,7 +1684,7 @@ static void cpu_compare(TCGv reg)
 {
     TCGv result = tcg_temp_new();
     tcg_gen_sub_tl(result, reg, op_value);
-gen_helper_print_opval(cpu_env, op_value);
+// gen_helper_print_opval(cpu_env, op_value);
     // TCGv con = tcg_temp_new();
     
     tcg_gen_setcondi_tl(TCG_COND_GE, cpu_carry_flag, result, 0);
@@ -1726,8 +1757,10 @@ static bool trans_CMP_INDIRECT_Y(DisasContext *ctx, arg_CMP_INDIRECT_Y *a)
 
 static bool trans_CPX_IM(DisasContext *ctx, arg_CPX_IM *a)
 {
+    printf("trans_CPX_IM imm %d\n", a->imm);
     tcg_gen_movi_i32(op_value, a->imm);
     cpu_compare(cpu_X);
+    // gen_helper_print_opval(cpu_env, cpu_X);
     return true;
 }
 
@@ -1881,9 +1914,19 @@ static bool trans_DEC_ABSOLUTE_X(DisasContext *ctx, arg_DEC_ABSOLUTE_X *a)
 
 static bool trans_DEX(DisasContext *ctx, arg_DEX *a)
 {
+// gen_helper_print_opval(cpu_env, cpu_X);
+    printf("trans_DEX \n");
+        TCGv t = tcg_temp_new();
+    tcg_gen_movi_i32(t, 7);
+    // gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
+    
     tcg_gen_subi_tl(cpu_X, cpu_X, 1);
     tcg_gen_andi_tl(cpu_X, cpu_X, 0xFF);
     cpu_update_zn_flags(cpu_X);
+
+    // gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
+// gen_helper_print_opval(cpu_env, cpu_X);
+
     return true;
 }
 
