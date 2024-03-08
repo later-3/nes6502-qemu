@@ -703,8 +703,11 @@ static bool trans_JMP_INDIRECT(DisasContext *ctx, arg_JMP_INDIRECT *a)
     return true;
 }
 
+static void cpu_stack_pushw(uint16_t data);
 static bool trans_JSR_ABSOLUTE(DisasContext *ctx, arg_JSR_ABSOLUTE *a)
 {
+    cpu_stack_pushw(ctx->npc - 1);
+
     cpu_address_absolute( a->addr2 <<8 | a->addr1);
 
     tcg_gen_mov_i32(cpu_pc, op_address);
@@ -797,17 +800,26 @@ static void cpu_stack_pushw(uint16_t data)
 static void cpu_stack_popb(TCGv val)
 {
     TCGv tmp = tcg_temp_new();
+    // gen_helper_print_opval(cpu_env, cpu_stack_point);
     tcg_gen_addi_tl(cpu_stack_point, cpu_stack_point, 1);
+    // gen_helper_print_opval(cpu_env, cpu_stack_point);
+
     tcg_gen_addi_tl(tmp, cpu_stack_point, 0x100);
+    // gen_helper_print_opval(cpu_env, tmp);
+
     tcg_gen_andi_tl(tmp, tmp, 0x7FF);
     tcg_gen_qemu_ld_tl(val, tmp, 0, MO_UB);
 }
 
 static void cpu_stack_popw(TCGv val)
 {
+    TCGv tmp = tcg_temp_new();
+
     tcg_gen_addi_tl(cpu_stack_point, cpu_stack_point, 2);
     tcg_gen_andi_tl(cpu_stack_point, cpu_stack_point, 0xFF);
-    tcg_gen_qemu_ld_tl(val, cpu_stack_point, 0, MO_LEUW);
+    tcg_gen_addi_tl(tmp, cpu_stack_point, 0xff);
+
+    tcg_gen_qemu_ld_tl(val, tmp, 0, MO_LEUW);
 }
 
 static bool trans_RTS(DisasContext *ctx, arg_RTS *a)
@@ -1672,7 +1684,6 @@ static bool trans_SEI(DisasContext *ctx, arg_SEI *a)
     // tcg_gen_qemu_st_tl(reg, mem, 0, MO_8);
 
     tcg_gen_movi_tl(cpu_interrupt_flag, 1);
-
     return true;
 }
 

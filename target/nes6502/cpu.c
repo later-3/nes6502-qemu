@@ -79,6 +79,9 @@ static void avr_cpu_reset_hold(Object *obj)
         mcc->parent_phases.hold(obj);
     }
 
+    env->stack_point = 253;
+    env->P |= 0x4;
+
     env->pc_w = 0;
     env->sregI = 1;
     env->sregC = 0;
@@ -102,7 +105,6 @@ static void avr_cpu_reset_hold(Object *obj)
 
     env->reg_A = 0;
     env->reg_X = 0;
-    env->stack_point = 0;
 }
 
 static void nes6502_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
