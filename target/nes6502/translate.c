@@ -138,7 +138,7 @@ void nes6502_cpu_tcg_init(void)
 
     cpu_A = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(reg_A), "reg_A");
     cpu_X = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(reg_X), "reg_X");
-    cpu_Y = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(reg_X), "reg_Y");
+    cpu_Y = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(reg_Y), "reg_Y");
     cpu_carry_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(carry_flag), "carry_flag");
     cpu_zero_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(zero_flag), "zero_flag");
     cpu_interrupt_flag = tcg_global_mem_new_i32(cpu_env, NES6502_REG_OFFS(interrupt_flag), "interrupt_flag");
@@ -238,12 +238,12 @@ static void cpu_address_absolute_y(uint16_t addr)
     tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
-static int cpu_address_relative(uint8_t imm)
+static int cpu_address_relative(DisasContext *ctx, uint8_t imm)
 {
     int addr = imm;
     if (addr & 0x80)
         addr -= 0x100;
-    tcg_gen_movi_tl(op_address, imm);
+    tcg_gen_movi_tl(op_address, addr);
     tcg_gen_add_tl(op_address, op_address, cpu_pc);
     return addr;
 }
@@ -585,7 +585,7 @@ static void cpu_branch(DisasContext *ctx, TCGCond cond, TCGv value, int arg, int
 
 static bool trans_BCC(DisasContext *ctx, arg_BCC *a)
 {
-    cpu_address_relative(a->imm);
+    cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_carry_flag, tmp, 0);
@@ -596,56 +596,57 @@ static bool trans_BCC(DisasContext *ctx, arg_BCC *a)
 
 static bool trans_BCS(DisasContext *ctx, arg_BCS *a)
 {
-    cpu_address_relative(a->imm);
-
-    TCGv tmp = tcg_temp_new();
-    cpu_flag_set(cpu_carry_flag, tmp, 1);
+    int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 0);
     // gen_helper_print_flag(cpu_env, cpu_carry_flag, t);
+    
+    TCGv tmp = tcg_temp_new();
+    cpu_flag_set(cpu_carry_flag, tmp, 1);
+
 
     // printf("bcs imm %d\n", a->imm);
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
 static bool trans_BEQ(DisasContext *ctx, arg_BEQ *a)
 {
-    cpu_address_relative(a->imm);
+    int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_zero_flag, tmp, 1);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm); 
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr); 
     return true;
 }
 
 static bool trans_BMI(DisasContext *ctx, arg_BMI *a)
 {
-    cpu_address_relative(a->imm);
+    int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_negative_flag, tmp, 1);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
 static bool trans_BVS(DisasContext *ctx, arg_BVS *a)
 {
-    cpu_address_relative(a->imm);
+    int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_overflow_flag, tmp, 1);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
 static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
 {
-    int addr = cpu_address_relative(a->imm);
+    int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_zero_flag, tmp, 0);
@@ -654,13 +655,14 @@ static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
     tcg_gen_movi_i32(t, 1);
     // gen_helper_print_flag(cpu_env, cpu_zero_flag, t);
 
+
     cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
 static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
 {
-    int res = cpu_address_relative(a->imm);
+    int res = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     // printf("bpl imm %d\n", a->imm);
@@ -668,7 +670,6 @@ static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
 
     TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 7);
-    // gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
 
     cpu_branch(ctx, TCG_COND_EQ, tmp, 1, res);
     return true;
@@ -676,12 +677,12 @@ static bool trans_BPL(DisasContext *ctx, arg_BPL *a)
 
 static bool trans_BVC(DisasContext *ctx, arg_BVC *a)
 {
-    cpu_address_relative(a->imm);
+    int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_overflow_flag, tmp, 0);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
@@ -921,9 +922,11 @@ static bool trans_LDA_INDIRECT_Y(DisasContext *ctx, arg_LDA_INDIRECT_Y *a)
 
 static bool trans_LDX_IM(DisasContext *ctx, arg_LDX_IM *a)
 {
-    printf("trans_LDX_IM a->imm%d\n", a->imm);
+    // printf("trans_LDX_IM a->imm%d\n", a->imm);
+
     tcg_gen_movi_i32(cpu_X, a->imm);
     cpu_update_zn_flags(cpu_X);
+    
     return true;
 }
 
@@ -1060,6 +1063,8 @@ static bool trans_STX_ZEROPAGE(DisasContext *ctx, arg_STX_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
     tcg_gen_qemu_st_tl(cpu_X, op_address, 0, MO_UB);
+
+
     return true;
 }
 
@@ -1926,7 +1931,6 @@ static bool trans_DEC_ABSOLUTE_X(DisasContext *ctx, arg_DEC_ABSOLUTE_X *a)
 static bool trans_DEX(DisasContext *ctx, arg_DEX *a)
 {
 // gen_helper_print_opval(cpu_env, cpu_X);
-    printf("trans_DEX \n");
         TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 7);
     // gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
@@ -1936,7 +1940,6 @@ static bool trans_DEX(DisasContext *ctx, arg_DEX *a)
     cpu_update_zn_flags(cpu_X);
 
     // gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
-// gen_helper_print_opval(cpu_env, cpu_X);
 
     return true;
 }

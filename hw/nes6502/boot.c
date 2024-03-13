@@ -65,11 +65,18 @@ static int fce_load_rom(char *rom, NesMcuState *s)
     romread(rom, buf, prg_size);
 
     if (mmc_id == 0 || mmc_id == 3) {
-        address_space_write(&address_space_memory, FIRST_CODE_OFFSET, MEMTXATTRS_UNSPECIFIED, buf, PRG_BLOGK_SIZE);
-        // if there is only one PRG block, we must repeat it twice
+
         if (fce_rom_header.prg_block_count == 1) {
-            address_space_write(&address_space_memory, SECOND_CODE_OFFSET, MEMTXATTRS_UNSPECIFIED, buf, PRG_BLOGK_SIZE);
+            // mmc_copy(0x8000, buf, 0x4000);
+            // mmc_copy(0xC000, buf, 0x4000);
+            address_space_write(&address_space_memory, FIRST_CODE_OFFSET, MEMTXATTRS_UNSPECIFIED, buf, PRG_BLOGK_SIZE);
+            address_space_write(&address_space_memory, 0xC000, MEMTXATTRS_UNSPECIFIED, buf, PRG_BLOGK_SIZE);
         }
+        else {
+            // mmc_copy(0x8000, buf, 0x8000);
+            address_space_write(&address_space_memory, 0x8000, MEMTXATTRS_UNSPECIFIED, buf, 0x8000);
+        }
+
     }
     else {
         return -1;
