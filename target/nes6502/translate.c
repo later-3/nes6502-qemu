@@ -164,7 +164,7 @@ static uint32_t decode_insn_load_bytes(DisasContext *ctx, uint32_t insn,
                            int i, int n)
 {
     while (++i <= n) {
-        uint8_t b = cpu_ldub_code(ctx->env, ctx->npc++);
+        uint8_t b = cpu_ldub_code(ctx->env, ctx->base.pc_next++);
         insn |= b << (32 - i * 8);
     }
     return insn;
@@ -204,7 +204,7 @@ static void cpu_address_absolute(uint16_t addr)
     tcg_gen_movi_tl(op_address, addr);
     tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_8);
     
-    gen_helper_print_opval(cpu_env, op_value);
+    // gen_helper_print_opval(cpu_env, op_value);
     
     // TCGv mem;
     // mem = tcg_temp_new();
@@ -577,21 +577,21 @@ static void cpu_branch(DisasContext *ctx, TCGCond cond, TCGv value, int arg, int
     t = gen_new_label();
     done = gen_new_label();
     tcg_gen_brcondi_i32(cond, value, arg, t);
-    gen_goto_tb(ctx, 0, ctx->npc);
+    gen_goto_tb(ctx, 0, ctx->base.pc_next);
     tcg_gen_br(done);
     gen_set_label(t);
-    gen_goto_tb(ctx, 1, ctx->npc + addr);
+    gen_goto_tb(ctx, 1, ctx->base.pc_next + addr);
     gen_set_label(done);
 }
 
 static bool trans_BCC(DisasContext *ctx, arg_BCC *a)
 {
-    cpu_address_relative(ctx, a->imm);
+    int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_carry_flag, tmp, 0);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, a->imm);
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
@@ -650,14 +650,14 @@ static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
     int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
-    cpu_flag_set(cpu_zero_flag, tmp, 1);
+    cpu_flag_set(cpu_zero_flag, tmp, 0);
 
     TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 1);
     // gen_helper_print_flag(cpu_env, cpu_zero_flag, t);    
-    printf("bne addr %d, pc 0x%x, jmp = 0x%x\n", addr, ctx->npc, ctx->npc + addr);
+    printf("bne addr %d, pc 0x%x, jmp = 0x%x\n", addr, ctx->base.pc_next, ctx->base.pc_next + addr);
 
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 0, addr);
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
 }
 
@@ -708,7 +708,7 @@ static bool trans_JMP_INDIRECT(DisasContext *ctx, arg_JMP_INDIRECT *a)
 static void cpu_stack_pushw(uint16_t data);
 static bool trans_JSR_ABSOLUTE(DisasContext *ctx, arg_JSR_ABSOLUTE *a)
 {
-    cpu_stack_pushw(ctx->npc - 1);
+    cpu_stack_pushw(ctx->base.pc_next - 1);
 
     cpu_address_absolute( a->addr2 <<8 | a->addr1);
 
@@ -717,33 +717,33 @@ static bool trans_JSR_ABSOLUTE(DisasContext *ctx, arg_JSR_ABSOLUTE *a)
     return true;
 }
 
-// static void cpu_pack_p(void)
-// {
-//     TCGv tmp = tcg_temp_new();
-//     tcg_gen_andi_tl(tmp, P, 0x01);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_carry_flag, tmp, 1);
+static void cpu_pack_p(void)
+{
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_andi_tl(tmp, P, 0x01);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_carry_flag, tmp, 1);
 
-//     tcg_gen_andi_tl(tmp, P, 0x02);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, tmp, 1);
+    tcg_gen_andi_tl(tmp, P, 0x02);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_zero_flag, tmp, 2);
 
-//     tcg_gen_andi_tl(tmp, P, 0x04);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_interrupt_flag, tmp, 1);
+    tcg_gen_andi_tl(tmp, P, 0x04);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_interrupt_flag, tmp, 0x04);
 
-//     tcg_gen_andi_tl(tmp, P, 0x08);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_decimal_flag, tmp, 1);
+    tcg_gen_andi_tl(tmp, P, 0x08);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_decimal_flag, tmp, 0x08);
 
-//     tcg_gen_andi_tl(tmp, P, 0x10);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_break_flag, tmp, 1);
+    tcg_gen_andi_tl(tmp, P, 0x10);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_break_flag, tmp, 0x10);
 
-//     tcg_gen_andi_tl(tmp, P, 0x20);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_unused_flag, tmp, 1);
+    tcg_gen_andi_tl(tmp, P, 0x20);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_unused_flag, tmp, 0x20);
 
-//     tcg_gen_andi_tl(tmp, P, 0x40);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_overflow_flag, tmp, 1);
+    tcg_gen_andi_tl(tmp, P, 0x40);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_overflow_flag, tmp, 0x40);
 
-//     tcg_gen_andi_tl(tmp, P, 0x80);
-//     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_negative_flag, tmp, 1);
-// }
+    tcg_gen_andi_tl(tmp, P, 0x80);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_negative_flag, tmp, 0x80);
+}
 
 static void cpu_stack_pushb_tcg(TCGv addr, TCGv tmp)
 {
@@ -1932,7 +1932,7 @@ static bool trans_DEC_ABSOLUTE_X(DisasContext *ctx, arg_DEC_ABSOLUTE_X *a)
 static bool trans_DEX(DisasContext *ctx, arg_DEX *a)
 {
 // gen_helper_print_opval(cpu_env, cpu_X);
-        TCGv t = tcg_temp_new();
+    TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 7);
     // gen_helper_print_flag(cpu_env, cpu_negative_flag, t);
     
@@ -1980,6 +1980,15 @@ static bool trans_PLA(DisasContext *ctx, arg_PLA *a)
 
 static bool trans_PLP(DisasContext *ctx, arg_PLP *a)
 {
+    TCGv t = tcg_temp_new();
+    cpu_stack_popb(t);
+
+    tcg_gen_andi_tl(t, t, 0xEF);
+    tcg_gen_ori_tl(t, t, 0x20);
+
+    tcg_gen_mov_tl(P, t);
+
+    cpu_pack_p();
     return true;
 }
 
@@ -2001,11 +2010,14 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
     return true;
 }
 
-// static FILE *g_fp;
-// static void init_log(void)
-// {
-//    g_fp = fopen("./log.txt", "w+");
-// }
+static FILE *g_fp;
+static void init_log(void)
+{
+    if (g_fp) {
+        return;
+    }
+   g_fp = fopen("./log.txt", "w+");
+}
 
 /*
  *  Core translation mechanism functions:
@@ -2019,11 +2031,12 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
 static void translate(DisasContext *ctx)
 {
     uint32_t opcode;
-    target_long npc_t = ctx->npc;
+    target_long npc_t = ctx->base.pc_next;
     opcode = decode_insn_load(ctx);
     uint16_t op = opcode >> 24;
 
     printf("opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
+    fprintf(g_fp, "opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);
         ctx->base.is_jmp = DISAS_NORETURN;
@@ -2054,8 +2067,8 @@ static void nes6502_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 static void nes6502_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    ctx->npc = ctx->base.pc_next;
     translate(ctx);
-    ctx->base.pc_next = ctx->npc;
 }
 
 static void nes6502_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
@@ -2100,5 +2113,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
                            target_ulong pc, void *host_pc)
 {
     DisasContext dc = { };
+    init_log();
     translator_loop(cs, tb, max_insns, pc, host_pc, &nes6502_tr_ops, &dc.base);
 }
