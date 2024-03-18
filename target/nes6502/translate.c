@@ -204,6 +204,7 @@ static void cpu_address_absolute(uint16_t addr)
     tcg_gen_movi_tl(op_address, addr);
     tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_8);
     
+    gen_helper_print_opval(cpu_env, op_value);
     
     // TCGv mem;
     // mem = tcg_temp_new();
@@ -649,14 +650,14 @@ static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
     int addr = cpu_address_relative(ctx, a->imm);
 
     TCGv tmp = tcg_temp_new();
-    cpu_flag_set(cpu_zero_flag, tmp, 0);
+    cpu_flag_set(cpu_zero_flag, tmp, 1);
 
     TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 1);
-    // gen_helper_print_flag(cpu_env, cpu_zero_flag, t);
+    // gen_helper_print_flag(cpu_env, cpu_zero_flag, t);    
+    printf("bne addr %d, pc 0x%x, jmp = 0x%x\n", addr, ctx->npc, ctx->npc + addr);
 
-
-    cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
+    cpu_branch(ctx, TCG_COND_EQ, tmp, 0, addr);
     return true;
 }
 

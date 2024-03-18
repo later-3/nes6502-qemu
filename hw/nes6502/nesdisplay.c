@@ -37,22 +37,22 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
                              int width, int pitch)
 {
     NES6502FbState *nfbstate = NES6502FB(opaque);
-    static const uint32_t pal[4] = {
-        0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000
-    };
+    // static const uint32_t pal[4] = {
+    //     0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000
+    // };
     uint32_t *buf = (uint32_t *)d;
     int i = 0;
 
     for (i = 0; i < nfbstate->cols / 4; i++) {
         int j = i * 4;
         uint8_t src = s[i];
-        buf[j + 3] = pal[src & 0x3];
+        buf[j + 3] = 0xff;
         src >>= 2;
-        buf[j + 2] = pal[src & 0x3];
+        buf[j + 2] = 0xff;
         src >>= 2;
-        buf[j + 1] = pal[src & 0x3];
+        buf[j + 1] = 0xff;
         src >>= 2;
-        buf[j + 0] = pal[src & 0x3];
+        buf[j + 0] = 0;
     }
 }
 
@@ -92,6 +92,8 @@ static const GraphicHwOps nextfb_ops = {
     .gfx_update  = nextfb_update,
 };
 
+#define SCREEN_WIDTH 256
+#define SCREEN_HEIGHT 240
 static void nextfb_realize(DeviceState *dev, Error **errp)
 {
     NES6502FbState *s = NES6502FB(dev);
@@ -101,8 +103,8 @@ static void nextfb_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->fb_mr);
 
     s->invalidate = 1;
-    s->cols = 1120;
-    s->rows = 832;
+    s->cols = SCREEN_WIDTH;
+    s->rows = SCREEN_HEIGHT;
 
     s->con = graphic_console_init(dev, 0, &nextfb_ops, s);
     qemu_console_resize(s->con, s->cols, s->rows);

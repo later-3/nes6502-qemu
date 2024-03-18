@@ -384,7 +384,7 @@ static void ppu_cycle(void *opaque)
         // fce_update_screen();
     }
     int64_t cur = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    timer_mod(ppu->ts, cur + 10000000);
+    timer_mod(ppu->ts, cur + 1000000);
 }
 
 static void ppu_realize(DeviceState *dev, Error **errp)
@@ -394,14 +394,14 @@ static void ppu_realize(DeviceState *dev, Error **errp)
     // int64_t now = qemu_clock_get_ns(100);
     int64_t cur = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     // cur = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    timer_mod(ppu->ts, cur + 10000000);
+    timer_mod(ppu->ts, cur + 1000000);
 
 }
 
 static void ppu_post_init(Object *obj)
 {
     PPUState *s = NES_PPU(obj);
-    timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 10000000);
+    timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000000);
 }
 
 static void ppu_init(Object *obj)

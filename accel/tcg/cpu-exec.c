@@ -970,6 +970,7 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
             }
 
             tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
+            printf("tb pc 0x%x\n", pc);
             if (tb == NULL) {
                 CPUJumpCache *jc;
                 uint32_t h;
