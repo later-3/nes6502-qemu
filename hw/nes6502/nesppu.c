@@ -370,22 +370,26 @@ static void nes_set_bg_color(int c)
 
 static inline void nes_flush_bbg(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BBG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    int a = 0;
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BBG * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static inline void nes_flush_bg(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    int a = 0;
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BG * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static inline void nes_flush_fg(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_FG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    int a = 0;
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_FG * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static inline void ppu_flip_display(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLIP_DISPLAY * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    int a = 0;
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLIP_DISPLAY * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static void ppu_update_screen(PPUState *ppu)
@@ -482,6 +486,7 @@ static void ppu_init(Object *obj)
             }
         }
     }
+    s->ready = true;
 }
 
 static void ppu_reset(DeviceState *dev)
