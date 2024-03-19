@@ -46,9 +46,9 @@ static void romread(char *rom, void *buf, int size)
 
 byte mmc_id;
 
-static void mmc_append_chr_rom_page(byte *source, int size, int *page_number)
+static void mmc_append_chr_rom_page(byte *source, int size, int page_number)
 {
-    address_space_write(&address_space_memory, size, MEMTXATTRS_UNSPECIFIED, source, 0x2000);
+    address_space_write(&address_space_memory, 0x18000 + page_number * 0x2000, MEMTXATTRS_UNSPECIFIED, source, 0x2000);
 }
 
 static int fce_load_rom(char *rom, NesMcuState *s)
@@ -86,7 +86,8 @@ static int fce_load_rom(char *rom, NesMcuState *s)
     int i;
     for (i = 0; i < fce_rom_header.chr_block_count; i++) {
         romread(rom, buf, 0x2000);
-        mmc_append_chr_rom_page(buf, WORK_RAM_SIZE, &s->mmc_chr_pages_number);
+        mmc_append_chr_rom_page(buf, WORK_RAM_SIZE, s->mmc_chr_pages_number);
+        s->mmc_chr_pages_number++;
 
         if (i == 0) {
             ppu_copy(0x0000, buf, 0x2000);

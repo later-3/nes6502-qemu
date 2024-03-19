@@ -207,11 +207,14 @@ static void nes6502_realize(DeviceState *dev, Error **errp)
     /* CHR RAM*/
     memory_region_init_ram(&s->chr_ram, OBJECT(dev), "chr_ram", MMC_MAX_PAGE_COUNT * 0x2000, &error_abort);
     memory_region_add_subregion(get_system_memory(), 0x18000, &s->chr_ram);
+    s->mmc_prg_pages_number = 0;
+    s->mmc_chr_pages_number = 0;
 
     /* Framebuffer */
     object_initialize_child(OBJECT(dev), "nes-fb", &s->nesfb, TYPE_NES6502FB);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->nesfb), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(&s->nesfb), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->nesfb), 0, 0x0B000000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->nesfb), 1, 0x0C000000);
 }
 
 static Property atmega_props[] = {

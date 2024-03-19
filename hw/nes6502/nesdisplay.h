@@ -19,6 +19,7 @@ struct NES6502FbState {
     SysBusDevice parent_obj;
 
     MemoryRegion fb_mr;
+    MemoryRegion mr;
     MemoryRegionSection fbsection;
     QemuConsole *con;
 

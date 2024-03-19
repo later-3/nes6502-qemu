@@ -62,4 +62,17 @@ void framebuffer_update_display(
     int *first_row,
     int *last_row);
 
+void framebuffer_update_full_frame(
+    DisplaySurface *ds,
+    MemoryRegionSection *mem_section,
+    int cols,
+    int rows,
+    int src_width,
+    int dest_row_pitch,
+    int dest_col_pitch,
+    int invalidate,
+    drawfn fn,
+    void *opaque,
+    int *first_row,
+    int *last_row);
 #endif

@@ -2,6 +2,10 @@
 #include "nesppu.h"
 #include "ppu_interal.h"
 #include "hal.h"
+#include "qemu/module.h"
+#include "qemu/osdep.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
 #ifndef DEBUG_IMX_UART
 #define DEBUG_IMX_UART 0
@@ -357,6 +361,54 @@ static void cpu_interrupt(PPUState *ppu)
     // }
 }
 
+#define NESFB_OP_ADDRESS 0x0C000000
+/* Set background color. RGB value of c is defined in fce.h */
+static void nes_set_bg_color(int c)
+{
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS, MEMTXATTRS_UNSPECIFIED, &c, 4);
+}
+
+static inline void nes_flush_bbg(void)
+{
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BBG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+}
+
+static inline void nes_flush_bg(void)
+{
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+}
+
+static inline void nes_flush_fg(void)
+{
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_FG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+}
+
+static inline void ppu_flip_display(void)
+{
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLIP_DISPLAY * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+}
+
+static void ppu_update_screen(PPUState *ppu)
+{
+    int idx = ppu_ram_read(0x3F00);
+    nes_set_bg_color(idx);
+    
+    if (ppu_shows_sprites(ppu))
+        nes_flush_bbg();
+
+    if (ppu_shows_background(ppu))
+        nes_flush_bg();
+
+    if (ppu_shows_sprites(ppu))
+        nes_flush_fg();
+
+    ppu_flip_display();
+
+    pixbuf_clean(bbg);
+    pixbuf_clean(bg);
+    pixbuf_clean(fg);
+}
+
 static void ppu_cycle(void *opaque)
 {
     PPUState *ppu = opaque;
@@ -381,7 +433,7 @@ static void ppu_cycle(void *opaque)
         ppu->scanline = -1;
         ppu_sprite_hit_occured = false;
         ppu_set_in_vblank(ppu, false);
-        // fce_update_screen();
+        ppu_update_screen(ppu);
     }
     int64_t cur = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     timer_mod_ns(ppu->ts, cur + 30000);
