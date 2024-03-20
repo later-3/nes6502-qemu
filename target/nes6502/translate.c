@@ -364,8 +364,10 @@ static void cpu_update_n_flags(TCGv r)
 
 static void cpu_update_zn_flags(TCGv r)
 {
+    // gen_helper_print_P(cpu_env);
     cpu_update_z_flags(r);
     cpu_update_n_flags(r);
+    // gen_helper_print_P(cpu_env);
 }
 
 /*

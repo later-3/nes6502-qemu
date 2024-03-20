@@ -128,6 +128,8 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
         }
         buf[pixel_index] = vtx[i].color;
     }
+
+    vtx_sz = 0;
 }
 
 static void nextfb_update(void *opaque)
@@ -142,17 +144,17 @@ static void nextfb_update(void *opaque)
     src_width = s->cols * 2;
     dest_width = s->cols * 2;
 
-    // if (s->invalidate) {
-    //     framebuffer_update_memory_section(&s->fbsection, &s->fb_mr, 0,
-    //                                       s->cols, src_width);
-    //     s->invalidate = 0;
-    // }
+    if (s->invalidate) {
+        framebuffer_update_memory_section(&s->fbsection, &s->fb_mr, 0,
+                                          s->rows * 2, src_width);
+        s->invalidate = 0;
+    }
 
-    framebuffer_update_display(surface, &s->fbsection, s->cols, s->rows,
+    framebuffer_update_display(surface, &s->fbsection, s->cols * 2, s->rows * 2,
                                src_width, dest_width, 0, 1, nextfb_draw_line,
                                s, &first, &last);
 
-    dpy_gfx_update(s->con, 0, 0, s->cols, s->rows);
+    dpy_gfx_update(s->con, 0, 0, s->cols * 2, s->rows * 2);
 }
 
 static void nextfb_invalidate(void *opaque)
@@ -179,7 +181,6 @@ static uint64_t nesfb_read(void *opaque, hwaddr addr, unsigned size)
 void nes_flip_display(void *opaque)
 {
     nextfb_update(opaque);
-    vtx_sz = 0;
 }
 
 /* Flush the pixel buffer */
