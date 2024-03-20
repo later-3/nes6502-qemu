@@ -765,16 +765,16 @@ static void cpu_stack_pushb_tcg(TCGv addr, TCGv tmp)
 //     cpu_stack_pushb_tcg(addr, tmp);
 // }
 
-static void cpu_stack_pushb(uint8_t data)
-{
-    TCGv tmp;
-    tmp = tcg_temp_new();
-    tcg_gen_movi_tl(tmp, data);
+// static void cpu_stack_pushb(uint8_t data)
+// {
+//     TCGv tmp;
+//     tmp = tcg_temp_new();
+//     tcg_gen_movi_tl(tmp, data);
 
-    TCGv addr = tcg_temp_new();
-    tcg_gen_addi_tl(addr, cpu_stack_point, 0x100);
-    cpu_stack_pushb_tcg(addr, tmp);
-}
+//     TCGv addr = tcg_temp_new();
+//     tcg_gen_addi_tl(addr, cpu_stack_point, 0x100);
+//     cpu_stack_pushb_tcg(addr, tmp);
+// }
 
 static void cpu_stack_pushb_a(TCGv tmp)
 {
@@ -2008,10 +2008,19 @@ static bool trans_NOP(DisasContext *ctx, arg_NOP *a)
 
 static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
 {
-    cpu_stack_pushw(ctx->base.pc_next);
-    cpu_stack_popw(cpu_pc);
-    cpu_stack_popb(cpu_pc);
-    cpu_stack_pushb(0);
+    cpu_stack_pushw(ctx->base.pc_next - 1);
+    cpu_stack_pushb_a(P);
+    tcg_gen_ori_tl(P, P, 0x20);
+    tcg_gen_ori_tl(P, P, 0x10);
+
+    TCGv nmi_addr = tcg_temp_new();
+    tcg_gen_movi_tl(nmi_addr, 0xFFFA);
+    tcg_gen_qemu_ld_tl(cpu_pc, nmi_addr, 0, MO_UW);
+    ctx->base.is_jmp = DISAS_JUMP;
+
+    // cpu_stack_popw(cpu_pc);
+    // cpu_stack_popb(cpu_pc);
+    // cpu_stack_pushb(0);
     return true;
 }
 
