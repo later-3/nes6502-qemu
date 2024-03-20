@@ -193,7 +193,7 @@ static bool ppu_shows_background_in_leftmost_8px(PPUState *ppu)
 
 static byte ppu_ram_read(word address)
 {
-    printf("ppu ram read address %d, data 0x%x\n", address, PPU_RAM[ppu_get_real_ram_address(address)]);
+    // printf("ppu ram read address %d, data 0x%x\n", address, PPU_RAM[ppu_get_real_ram_address(address)]);
     return PPU_RAM[ppu_get_real_ram_address(address)];
 }
 
@@ -350,11 +350,8 @@ static void cpu_interrupt(PPUState *ppu)
 {
     // if (ppu_in_vblank()) {
         if (ppu_generates_nmi(ppu)) {
-            static int a = 1;
-            if (a == 1) {
                 qemu_irq_pulse(ppu->irq);
-                a++;
-            }
+
             // cpu.P |= interrupt_flag;
             // cpu_unset_flag(unused_bp);
             // cpu_stack_pushw(cpu.PC);

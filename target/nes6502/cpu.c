@@ -68,43 +68,33 @@ static void avr_restore_state_to_opc(CPUState *cs,
     env->pc_w = data[0];
 }
 
-static void avr_cpu_reset_hold(Object *obj)
+static void nes6502_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
     NES6502CPU *cpu = NES6502_CPU(cs);
-    NES6502CPUClass *mcc = NES6502_CPU_GET_CLASS(cpu);
     CPUNES6502State *env = &cpu->env;
 
-    if (mcc->parent_phases.hold) {
-        mcc->parent_phases.hold(obj);
-    }
-
     env->stack_point = 253;
+    env->P = 0x24;
     env->P |= 0x4;
 
     env->pc_w = 0;
-    env->sregI = 1;
-    env->sregC = 0;
-    env->sregZ = 0;
-    env->sregN = 0;
-    env->sregV = 0;
-    env->sregS = 0;
-    env->sregH = 0;
-    env->sregT = 0;
-
-    env->rampD = 0;
-    env->rampX = 0;
-    env->rampY = 0;
-    env->rampZ = 0;
-    env->eind = 0;
     env->sp = 0;
-
-    env->skip = 0;
 
     memset(env->r, 0, sizeof(env->r));
 
     env->reg_A = 0;
     env->reg_X = 0;
+    env->reg_Y = 0;
+
+    env->carry_flag = 0;
+    env->zero_flag = 0;
+    env->interrupt_flag = 1;
+    env->decimal_flag = 0;
+    env->break_flag = 0;
+    env->unused_flag = 1;
+    env->overflow_flag = 0;
+    env->negative_flag = 0;
 }
 
 static void nes6502_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
@@ -222,7 +212,7 @@ static const struct TCGCPUOps nes6502_tcg_ops = {
     .initialize = nes6502_cpu_tcg_init,
     .synchronize_from_tb = avr_cpu_synchronize_from_tb,
     .restore_state_to_opc = avr_restore_state_to_opc,
-    .cpu_exec_interrupt = avr_cpu_exec_interrupt,
+    .cpu_exec_interrupt = nes6502_cpu_exec_interrupt,
     .tlb_fill = nes6502_cpu_tlb_fill,
     .do_interrupt = avr_cpu_do_interrupt,
 };
@@ -236,7 +226,7 @@ static void nes6502_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, nes6502_cpu_realizefn, &mcc->parent_realize);
 
-    resettable_class_set_parent_phases(rc, NULL, avr_cpu_reset_hold, NULL,
+    resettable_class_set_parent_phases(rc, NULL, nes6502_cpu_reset_hold, NULL,
                                        &mcc->parent_phases);
 
     cc->class_by_name = avr_cpu_class_by_name;

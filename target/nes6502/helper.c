@@ -47,6 +47,19 @@ void helper_print_flag(CPUNES6502State *env, uint32_t val, uint32_t index)
     printf("print_flag val 0x%x, flag %s\n", val, flag_arr[index]);
 }
 
+void helper_print_P(CPUNES6502State *env)
+{
+    printf("flag name %s, val 0x%x, \n", flag_arr[0], env->carry_flag);
+    printf("flag name %s, val 0x%x, \n", flag_arr[1], env->zero_flag);
+    printf("flag name %s, val 0x%x, \n", flag_arr[2], env->interrupt_flag);
+    printf("flag name %s, val 0x%x, \n", flag_arr[3], env->decimal_flag);
+    printf("flag name %s, val 0x%x, \n", flag_arr[4], env->break_flag);
+    printf("flag name %s, val 0x%x, \n", flag_arr[5], env->unused_flag);
+    printf("flag name %s, val 0x%x, \n", flag_arr[6], env->overflow_flag);
+    printf("flag name %s, val 0x%x, \n", flag_arr[7], env->negative_flag);
+    printf("\n");
+}
+
 uint32_t helper_psw_read(CPUNES6502State *env)
 {
     uint32_t p = 0;
@@ -83,56 +96,60 @@ void helper_psw_write(CPUNES6502State *env, uint32_t val)
     env->P = val & 0xFF;
 }
 
-bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+bool nes6502_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     NES6502CPU *cpu = NES6502_CPU(cs);
     CPUNES6502State *env = &cpu->env;
 
-    /*
-     * We cannot separate a skip from the next instruction,
-     * as the skip would not be preserved across the interrupt.
-     * Separating the two insn normally only happens at page boundaries.
-     */
-    if (env->skip) {
-        return false;
+    if (!(interrupt_request & CPU_INTERRUPT_HARD)) {
+        return false;   
     }
 
-    if (interrupt_request & CPU_INTERRUPT_RESET) {
-        if (cpu_interrupts_enabled(env)) {
-            cs->exception_index = EXCP_RESET;
-            avr_cpu_do_interrupt(cs);
+    assert(env->carry_flag < 2);
+    assert(env->zero_flag < 2);
+    assert(env->interrupt_flag < 2);
+    assert(env->decimal_flag < 2);
+    assert(env->break_flag < 2);
+    assert(env->unused_flag < 2);
+    assert(env->overflow_flag < 2);
+    assert(env->negative_flag < 2);
 
-            cs->interrupt_request &= ~CPU_INTERRUPT_RESET;
-            return true;
-        }
-    }
-    if (interrupt_request & CPU_INTERRUPT_HARD) {
-        if (cpu_interrupts_enabled(env) && env->intsrc != 0) {
-            int index = ctz32(env->intsrc);
-            cs->exception_index = EXCP_INT(index);
-            avr_cpu_do_interrupt(cs);
+    env->interrupt_flag = 1;
+    env->unused_flag = 0;
+    
+    env->P = env->carry_flag | env->zero_flag << 1 | env->interrupt_flag << 2 \
+                | env->decimal_flag << 3 | env->break_flag << 4 | env->unused_flag << 5 \
+                | env->overflow_flag << 6 | env->negative_flag << 7;
+    
+    unsigned int sp =  env->stack_point + 0xFF;
+    sp &= 0xffff;
+    cpu_stw_data(env, sp, env->pc_w);
+    
+    env->stack_point -= 2;
+    env->stack_point &= 0xff;
 
-            env->intsrc &= env->intsrc - 1; /* clear the interrupt */
-            if (!env->intsrc) {
-                cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
-            }
-            return true;
-        }
-    }
-    return false;
+    sp = env->stack_point + 0x100;
+    env->stack_point -= 1;
+    env->stack_point &= 0xff;
+
+    cpu_stb_data(env, sp, env->P);
+
+    env->pc_w = cpu_lduw_data(env, 0xFFFA);
+    cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+    return true;
 }
 
 void avr_cpu_do_interrupt(CPUState *cs)
 {
-    NES6502CPU *cpu = NES6502_CPU(cs);
-    CPUNES6502State *env = &cpu->env;
+    // NES6502CPU *cpu = NES6502_CPU(cs);
+    // CPUNES6502State *env = &cpu->env;
 
-    int vector = 0;
-    int base = 0;
-    env->pc_w = base + vector;
-    env->sregI = 0; /* clear Global Interrupt Flag */
+    // int vector = 0;
+    // int base = 0;
+    // env->pc_w = base + vector;
+    // env->sregI = 0; /* clear Global Interrupt Flag */
 
-    cs->exception_index = -1;
+    // cs->exception_index = -1;
 }
 
 hwaddr avr_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
