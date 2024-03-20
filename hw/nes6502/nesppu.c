@@ -32,8 +32,9 @@ static  void ppu_set_in_vblank(PPUState *ppu, bool yesno)
 { 
     common_modify_bitb(&ppu->PPUSTATUS, 7, yesno); 
 }
+static inline byte ppu_vram_address_increment(PPUState *ppu)                            { return common_bit_set(ppu->PPUCTRL, 2) ? 32 : 1;          }
 
-
+static byte ppu_ram_read(word address);
 static uint64_t ppu_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
@@ -65,18 +66,18 @@ static uint64_t ppu_read(void *opaque, hwaddr offset,
             byte data = 0;
             
             if (ppu->PPUADDR < 0x3F00) {
-                // data = ppu_latch = ppu_ram_read(ppu->PPUADDR);
+                data = ppu_latch = ppu_ram_read(ppu->PPUADDR);
             }
             else {
-                // data = ppu_ram_read(ppu->PPUADDR);
-                ppu_latch = 0;
+                data = ppu_ram_read(ppu->PPUADDR);
+                // ppu_latch = 0;
             }
             
             if (ppu_2007_first_read) {
                 ppu_2007_first_read = false;
             }
             else {
-                // ppu->PPUADDR += ppu_vram_address_increment();
+                ppu->PPUADDR += ppu_vram_address_increment(ppu);
             }
             return data;
         }
@@ -114,11 +115,7 @@ void ppu_copy(word address, byte *source, int length)
     memcpy(&PPU_RAM[address], source, length);
 }
 
-static void ppu_ram_write(word address, byte data)
-{
-    PPU_RAM[ppu_get_real_ram_address(address)] = data;
-}
-
+static void ppu_ram_write(word address, byte data);
 static void ppu_write(void *opaque, hwaddr offset,
                              uint64_t data, unsigned size)
 {
@@ -196,7 +193,13 @@ static bool ppu_shows_background_in_leftmost_8px(PPUState *ppu)
 
 static byte ppu_ram_read(word address)
 {
+    printf("ppu ram read address %d, data 0x%x\n", address, PPU_RAM[ppu_get_real_ram_address(address)]);
     return PPU_RAM[ppu_get_real_ram_address(address)];
+}
+
+static void ppu_ram_write(word address, byte data)
+{
+    PPU_RAM[ppu_get_real_ram_address(address)] = data;
 }
 
 static const word ppu_base_nametable_addresses[4] = { 0x2000, 0x2400, 0x2800, 0x2C00 };
@@ -368,24 +371,25 @@ static void nes_set_bg_color(int c)
     address_space_write(&address_space_memory, NESFB_OP_ADDRESS, MEMTXATTRS_UNSPECIFIED, &c, 4);
 }
 
+static int a = 0;
 static inline void nes_flush_bbg(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BBG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BBG * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static inline void nes_flush_bg(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_BG * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static inline void nes_flush_fg(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_FG * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLUSH_FG * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static inline void ppu_flip_display(void)
 {
-    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLIP_DISPLAY * 4, MEMTXATTRS_UNSPECIFIED, NULL, 4);
+    address_space_write(&address_space_memory, NESFB_OP_ADDRESS + NFSFB_FLIP_DISPLAY * 4, MEMTXATTRS_UNSPECIFIED, &a, 4);
 }
 
 static void ppu_update_screen(PPUState *ppu)
@@ -447,7 +451,7 @@ static void ppu_realize(DeviceState *dev, Error **errp)
     int64_t cur = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     // cur = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     timer_mod_ns(ppu->ts, cur + 5000);
-
+    ppu->ready = true;
 }
 
 static void ppu_post_init(Object *obj)
