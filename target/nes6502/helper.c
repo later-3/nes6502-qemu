@@ -86,13 +86,13 @@ void helper_psw_write(CPUNES6502State *env, uint32_t val)
     // overflow_bp   = 6,
     // negative_bp   = 7
     env->carry_flag = val & 0x1;
-    env->zero_flag = val & 0x2;
-    env->interrupt_flag = val & 0x4;
-    env->decimal_flag = val & 0x8;
-    env->break_flag = val & 0x10;
-    env->unused_flag = val & 0x20;
-    env->overflow_flag = val & 0x40;
-    env->negative_flag = val & 0x80;
+    env->zero_flag = (val & 0x2) ? 1 : 0;
+    env->interrupt_flag = (val & 0x4) ? 1 : 0;
+    env->decimal_flag = (val & 0x8) ? 1 : 0;
+    env->break_flag = (val & 0x10) ? 1 : 0;
+    env->unused_flag = (val & 0x20) ? 1 : 0;
+    env->overflow_flag = (val & 0x40) ? 1 : 0;
+    env->negative_flag = (val & 0x80) ? 1 : 0;
     env->P = val & 0xFF;
 }
 

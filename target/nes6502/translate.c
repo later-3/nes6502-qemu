@@ -806,6 +806,7 @@ static void cpu_stack_popb(TCGv val)
     TCGv tmp = tcg_temp_new();
     // gen_helper_print_opval(cpu_env, cpu_stack_point);
     tcg_gen_addi_tl(cpu_stack_point, cpu_stack_point, 1);
+    tcg_gen_andi_tl(cpu_stack_point, cpu_stack_point, 0xff);
     // gen_helper_print_opval(cpu_env, cpu_stack_point);
 
     tcg_gen_addi_tl(tmp, cpu_stack_point, 0x100);
@@ -842,6 +843,8 @@ static bool trans_RTI(DisasContext *ctx, arg_RTI *a)
     gen_helper_psw_write(cpu_env, P);
 
     cpu_stack_popw(cpu_pc);
+    ctx->base.is_jmp = DISAS_JUMP;
+
     return true;
 }
 
