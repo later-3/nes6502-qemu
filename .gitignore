@@ -19,5 +19,8 @@ GTAGS
 *.swp
 *.patch
 *.gcov
+.vscode
+nes.log
+log.txt
 
 /subprojects/slirp
