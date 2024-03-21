@@ -13,92 +13,6 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 
-/* following defintions from next68k netbsd */
-#define CSR_INT 0x00800000
-#define CSR_DATA 0x00400000
-
-#define KD_KEYMASK    0x007f
-#define KD_DIRECTION  0x0080 /* pressed or released */
-#define KD_CNTL       0x0100
-#define KD_LSHIFT     0x0200
-#define KD_RSHIFT     0x0400
-#define KD_LCOMM      0x0800
-#define KD_RCOMM      0x1000
-#define KD_LALT       0x2000
-#define KD_RALT       0x4000
-#define KD_VALID      0x8000 /* only set for scancode keys ? */
-#define KD_MODS       0x4f00
-
-
-
-static void queue_code(void *opaque, int code);
-
-/* lots of magic numbers here */
-static uint32_t kbd_read_byte(void *opaque, hwaddr addr)
-{
-    switch (addr & 0x3) {
-    case 0x0:   /* 0xe000 */
-        return 0x80 | 0x20;
-
-    case 0x1:   /* 0xe001 */
-        return 0x80 | 0x40 | 0x20 | 0x10;
-
-    case 0x2:   /* 0xe002 */
-        /* returning 0x40 caused mach to hang */
-        return 0x10 | 0x2 | 0x1;
-
-    default:
-        qemu_log_mask(LOG_UNIMP, "NeXT kbd read byte %"HWADDR_PRIx"\n", addr);
-    }
-
-    return 0;
-}
-
-static uint32_t kbd_read_word(void *opaque, hwaddr addr)
-{
-    qemu_log_mask(LOG_UNIMP, "NeXT kbd read word %"HWADDR_PRIx"\n", addr);
-    return 0;
-}
-
-/* even more magic numbers */
-static uint32_t kbd_read_long(void *opaque, hwaddr addr)
-{
-    int key = 0;
-    NesKBDState *s = NES_KBD(opaque);
-    KBDQueue *q = &s->queue;
-
-    switch (addr & 0xf) {
-    case 0x0:   /* 0xe000 */
-        return 0xA0F09300;
-
-    case 0x8:   /* 0xe008 */
-        /* get keycode from buffer */
-        if (q->count > 0) {
-            key = q->data[q->rptr];
-            if (++q->rptr == KBD_QUEUE_SIZE) {
-                q->rptr = 0;
-            }
-
-            q->count--;
-
-            if (s->shift) {
-                key |= s->shift;
-            }
-
-            if (key & 0x80) {
-                return 0;
-            } else {
-                return 0x10000000 | KD_VALID | key;
-            }
-        } else {
-            return 0;
-        }
-
-    default:
-        qemu_log_mask(LOG_UNIMP, "NeXT kbd read long %"HWADDR_PRIx"\n", addr);
-        return 0;
-    }
-}
 
 static uint8_t  prev_write;
 static int p = 10;
@@ -125,25 +39,56 @@ inline void psg_io_write(word address, byte data)
     prev_write = data & 1;
 }
 */
+static int key_arr[10];
+static int key_index;
+
+static int nes_psg_query_key(int ch)
+{
+    for (int i = 0; i < 9; i++) {
+        // printf("ch %d, val %d\n", ch, key_arr[i]);
+        if (key_arr[i] == ch) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int nes_psg_key_state(int b)
+{
+    printf("query key %d\n", b);
+    switch (b) // w 17 a 30 d 32 s 31 i 23  j 36 k 37
+    {
+        case 0: // On / Off
+            return 1;
+        case 1: // A
+            return nes_psg_query_key(37);
+        case 2: // B
+            return nes_psg_query_key(36);
+        case 3: // SELECT
+            return nes_psg_query_key(22);
+        case 4: // START
+            return nes_psg_query_key(23);
+        case 5: // UP
+            return nes_psg_query_key(17);
+        case 6: // DOWN
+            return nes_psg_query_key(31);
+        case 7: // LEFT
+            return nes_psg_query_key(30);
+        case 8: // RIGHT
+            return nes_psg_query_key(32);
+        default:
+            return 1;
+    }
+}
 
 static uint64_t kbd_readfn(void *opaque, hwaddr addr, unsigned size)
 {
     if (addr == 0x16) {
         if (p++ < 9) {
-            // return nes_key_state(p);
+            return nes_psg_key_state(p);
         }
     }
-
-    switch (size) {
-    case 1:
-        return kbd_read_byte(opaque, addr);
-    case 2:
-        return kbd_read_word(opaque, addr);
-    case 4:
-        return kbd_read_long(opaque, addr);
-    default:
-        g_assert_not_reached();
-    }
+    return 0;
 }
 
 static uint8_t cpu_ram_read(uint16_t addr)
@@ -167,11 +112,12 @@ static void kbd_writefn(void *opaque, hwaddr addr, uint64_t value,
     }
 
     if (addr == 0x16) {
-            if ((value & 1) == 0 && prev_write == 1) {
+        if ((value & 1) == 0 && prev_write == 1) {
             // strobe
             p = 0;
         }
     }
+    prev_write = value & 1;
 }
 
 static const MemoryRegionOps kbd_ops = {
@@ -184,77 +130,38 @@ static const MemoryRegionOps kbd_ops = {
 
 static void nextkbd_event(void *opaque, int ch)
 {
-    /*
-     * Will want to set vars for caps/num lock
-     * if (ch & 0x80) -> key release
-     * there's also e0 escaped scancodes that might need to be handled
-     */
-    queue_code(opaque, ch);
-}
-
-static const unsigned char next_keycodes[128] = {
-    0x00, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x50, 0x4F,
-    0x4E, 0x1E, 0x1F, 0x20, 0x1D, 0x1C, 0x1B, 0x00,
-    0x42, 0x43, 0x44, 0x45, 0x48, 0x47, 0x46, 0x06,
-    0x07, 0x08, 0x00, 0x00, 0x2A, 0x00, 0x39, 0x3A,
-    0x3B, 0x3C, 0x3D, 0x40, 0x3F, 0x3E, 0x2D, 0x2C,
-    0x2B, 0x26, 0x00, 0x00, 0x31, 0x32, 0x33, 0x34,
-    0x35, 0x37, 0x36, 0x2e, 0x2f, 0x30, 0x00, 0x00,
-    0x00, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-
-static void queue_code(void *opaque, int code)
-{
-    NesKBDState *s = NES_KBD(opaque);
-    KBDQueue *q = &s->queue;
-    int key = code & KD_KEYMASK;
-    int release = code & 0x80;
-    static int ext;
-
-    if (code == 0xE0) {
-        ext = 1;
+    // printf("ch %d\n", ch);// w 17 a 30 d 32 s 31 i 23  j 36 k 37 u 22
+    if (key_index > 9) {
+        memset(key_arr, 0, sizeof(*key_arr));
+        key_index = 0;
     }
 
-    if (code == 0x2A || code == 0x1D || code == 0x36) {
-        if (code == 0x2A) {
-            s->shift = KD_LSHIFT;
-        } else if (code == 0x36) {
-            s->shift = KD_RSHIFT;
-            ext = 0;
-        } else if (code == 0x1D && !ext) {
-            s->shift = KD_LCOMM;
-        } else if (code == 0x1D && ext) {
-            ext = 0;
-            s->shift = KD_RCOMM;
-        }
-        return;
-    } else if (code == (0x2A | 0x80) || code == (0x1D | 0x80) ||
-               code == (0x36 | 0x80)) {
-        s->shift = 0;
-        return;
+    switch (ch) {
+        case 17: //w
+            key_arr[key_index++] = 17;
+            break;
+        case 30: //a
+            key_arr[key_index++] = 30;
+            break;
+        case 32: //d
+            key_arr[key_index++] = 32;
+            break;
+        case 31: //s
+            key_arr[key_index++] = 31;
+            break;
+        case 23: //i
+            key_arr[key_index++] = 23;
+            break;
+        case 36: //j
+            key_arr[key_index++] = 36;
+            break;
+        case 37: //k
+            key_arr[key_index++] = 37;
+            break;
+        case 22: //u
+            key_arr[key_index++] = 22;
+            break;
     }
-
-    if (q->count >= KBD_QUEUE_SIZE) {
-        return;
-    }
-
-    q->data[q->wptr] = next_keycodes[key] | release;
-
-    if (++q->wptr == KBD_QUEUE_SIZE) {
-        q->wptr = 0;
-    }
-
-    q->count++;
-
-    /*
-     * might need to actually trigger the NeXT irq, but as the keyboard works
-     * at the moment, I'll worry about it later
-     */
-    /* s->update_irq(s->update_arg, 1); */
 }
 
 static void nextkbd_reset(DeviceState *dev)
