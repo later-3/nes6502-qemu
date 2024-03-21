@@ -107,6 +107,7 @@ int vtx_sz = 0;
 
 PixelBuf bg, bbg, fg;
 static int color_index;
+static int g_set_bg_color;
 static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
                              int width, int pitch)
 {
@@ -118,6 +119,18 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
     int x;
     int y;
     int pixel_index;
+
+    if (g_set_bg_color) {
+        if (color_index >= 64 || color_index < 0) {
+            printf("nesdisplay err wrong color_index: %d\n", color_index);
+            g_set_bg_color = 0;
+            return;
+        }
+        memset(buf, color_map[color_index], 512 * 480 * 4);
+        g_set_bg_color = 0;
+        return;
+    }
+
     for (int i = 0; i < vtx_sz; i++) {
         x = vtx[i].x;
         y = (nfbstate->cols * 2) * vtx[i].y;
@@ -168,9 +181,11 @@ static const GraphicHwOps nextfb_ops = {
     // .gfx_update  = nextfb_update,
 };
 
-static void nesfb_clear_to_color(int c)
+static void nesfb_clear_to_color(void *opaque, int c)
 {
     color_index = c;
+    g_set_bg_color = 1;
+    nextfb_update(opaque);
 }
 
 static uint64_t nesfb_read(void *opaque, hwaddr addr, unsigned size)
@@ -209,7 +224,7 @@ static void nesfb_write(void *opaque, hwaddr addr, uint64_t value,
     int offset = addr >> 2;
     switch (offset) {
     case NESFB_SET_BG_COLOR:
-        nesfb_clear_to_color(value);
+        nesfb_clear_to_color(opaque, value);
         break;
     case NFSFB_FLUSH_BBG:
         nes_flush_buf(&bbg);

@@ -115,13 +115,25 @@ void ppu_copy(word address, byte *source, int length)
     memcpy(&PPU_RAM[address], source, length);
 }
 
+static void ppu_set_mirroring(void *opaque, byte mirroring)
+{
+    PPUState *ppu = opaque;
+    ppu->mirroring = mirroring;
+    ppu->mirroring_xor = 0x400 << mirroring;
+}
+
+static void ppu_sprram_write(void *opaque, byte data)
+{
+    PPUState *ppu = opaque;
+    PPU_SPRRAM[ppu->OAMADDR++] = data;
+}
 static void ppu_ram_write(word address, byte data);
 static void ppu_write(void *opaque, hwaddr offset,
                              uint64_t data, unsigned size)
 {
     PPUState *ppu = opaque;
     word address = offset + 0x2000;
-    address &= 7;
+    address &= 15;
     ppu_latch = data;
     ppu->PPUADDR &= 0x3FFF;
     switch(address) {
@@ -162,7 +174,14 @@ static void ppu_write(void *opaque, hwaddr offset,
             else {
                 ppu_ram_write(ppu->PPUADDR, data);
             }
+            break;
         }
+        case 8:
+            ppu_set_mirroring(opaque, data);
+            break;
+        case 9:
+            ppu_sprram_write(opaque, data);
+            break;
     }
     ppu_latch = data;
 }

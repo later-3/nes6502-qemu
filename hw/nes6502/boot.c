@@ -137,8 +137,11 @@ bool nes6502_load_firmware(NES6502CPU *cpu, NesMcuState *s,
         fprintf(stderr, "Invalid or unsupported rom.\n");
         exit(1);
     }
-    qemu_register_reset(do_cpu_reset, cpu);
 
+    int val = fce_rom_header.rom_type & 1;
+    address_space_write(&address_space_memory, 0x2000 + 8, MEMTXATTRS_UNSPECIFIED, &val, 4);
+
+    qemu_register_reset(do_cpu_reset, cpu);
     // signal(SIGINT, do_exit);
     return true;
 }

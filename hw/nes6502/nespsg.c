@@ -10,7 +10,8 @@
 #include "nespsg.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
-
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
 /* following defintions from next68k netbsd */
 #define CSR_INT 0x00800000
@@ -99,8 +100,40 @@ static uint32_t kbd_read_long(void *opaque, hwaddr addr)
     }
 }
 
+static uint8_t  prev_write;
+static int p = 10;
+/*
+inline byte psg_io_read(word address)
+{
+    // Joystick 1
+    if (address == 0x4016) {
+        if (p++ < 9) {
+            return nes_key_state(p);
+        }
+    }
+    return 0;
+}
+
+inline void psg_io_write(word address, byte data)
+{
+    if (address == 0x4016) {
+        if ((data & 1) == 0 && prev_write == 1) {
+            // strobe
+            p = 0;
+        }
+    }
+    prev_write = data & 1;
+}
+*/
+
 static uint64_t kbd_readfn(void *opaque, hwaddr addr, unsigned size)
 {
+    if (addr == 0x16) {
+        if (p++ < 9) {
+            // return nes_key_state(p);
+        }
+    }
+
     switch (size) {
     case 1:
         return kbd_read_byte(opaque, addr);
@@ -113,11 +146,32 @@ static uint64_t kbd_readfn(void *opaque, hwaddr addr, unsigned size)
     }
 }
 
+static uint8_t cpu_ram_read(uint16_t addr)
+{
+    uint8_t value;
+    address_space_read(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
+                             &value, 1);
+    return value;
+}
+
+
 static void kbd_writefn(void *opaque, hwaddr addr, uint64_t value,
                         unsigned size)
 {
-    qemu_log_mask(LOG_UNIMP, "NeXT kbd write: size=%u addr=0x%"HWADDR_PRIx
-                  "val=0x%"PRIx64"\n", size, addr, value);
+    if (addr == 0x14) {
+        uint8_t val;
+        for (int i = 0; i < 256; i++) {
+            val = cpu_ram_read((0x100 * value) + i);
+            address_space_write(&address_space_memory, 0x2000 + 9, MEMTXATTRS_UNSPECIFIED, &val, 4);
+        }
+    }
+
+    if (addr == 0x16) {
+            if ((value & 1) == 0 && prev_write == 1) {
+            // strobe
+            p = 0;
+        }
+    }
 }
 
 static const MemoryRegionOps kbd_ops = {

@@ -657,7 +657,7 @@ static bool trans_BNE(DisasContext *ctx, arg_BNE *a)
     TCGv t = tcg_temp_new();
     tcg_gen_movi_i32(t, 1);
     // gen_helper_print_flag(cpu_env, cpu_zero_flag, t);    
-    printf("bne addr %d, pc 0x%x, jmp = 0x%x\n", addr, ctx->base.pc_next, ctx->base.pc_next + addr);
+    // printf("bne addr %d, pc 0x%x, jmp = 0x%x\n", addr, ctx->base.pc_next, ctx->base.pc_next + addr);
 
     cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr);
     return true;
