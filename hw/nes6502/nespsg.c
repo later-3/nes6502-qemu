@@ -40,15 +40,17 @@ inline void psg_io_write(word address, byte data)
 }
 */
 static int key_arr[10];
-static int key_index;
+static int key_index[10];
 
 static int nes_psg_query_key(int ch)
 {
-    for (int i = 0; i < 9; i++) {
-        // printf("ch %d, val %d\n", ch, key_arr[i]);
-        if (key_arr[i] == ch) {
-            return 1;
+    if (key_arr[ch]) {
+        if (key_index[ch] == 15) {
+            key_arr[ch] = 0;
+            key_index[ch] = 0;
         }
+        key_index[ch]++;
+        return 1;
     }
     return 0;
 }
@@ -61,21 +63,21 @@ static int nes_psg_key_state(int b)
         case 0: // On / Off
             return 1;
         case 1: // A
-            return nes_psg_query_key(37);
+            return nes_psg_query_key(1);
         case 2: // B
-            return nes_psg_query_key(36);
+            return nes_psg_query_key(2);
         case 3: // SELECT
-            return nes_psg_query_key(22);
+            return nes_psg_query_key(3);
         case 4: // START
-            return nes_psg_query_key(23);
+            return nes_psg_query_key(4);
         case 5: // UP
-            return nes_psg_query_key(17);
+            return nes_psg_query_key(5);
         case 6: // DOWN
-            return nes_psg_query_key(31);
+            return nes_psg_query_key(6);
         case 7: // LEFT
-            return nes_psg_query_key(30);
+            return nes_psg_query_key(7);
         case 8: // RIGHT
-            return nes_psg_query_key(32);
+            return nes_psg_query_key(8);
         default:
             return 1;
     }
@@ -131,35 +133,35 @@ static const MemoryRegionOps kbd_ops = {
 static void nextkbd_event(void *opaque, int ch)
 {
     // printf("ch %d\n", ch);// w 17 a 30 d 32 s 31 i 23  j 36 k 37 u 22
-    if (key_index > 9) {
-        memset(key_arr, 0, sizeof(*key_arr));
-        key_index = 0;
-    }
+    // if (key_index > 9) {
+    //     memset(key_arr, 0, sizeof(*key_arr));
+    //     key_index = 0;
+    // }
 
     switch (ch) {
         case 17: //w
-            key_arr[key_index++] = 17;
+            key_arr[5] = 1;
             break;
         case 30: //a
-            key_arr[key_index++] = 30;
+            key_arr[7] = 1;
             break;
         case 32: //d
-            key_arr[key_index++] = 32;
+            key_arr[8] = 1;
             break;
         case 31: //s
-            key_arr[key_index++] = 31;
+            key_arr[6] = 1;
             break;
         case 23: //i
-            key_arr[key_index++] = 23;
+            key_arr[4] = 1;
             break;
         case 36: //j
-            key_arr[key_index++] = 36;
+            key_arr[2] = 1;
             break;
         case 37: //k
-            key_arr[key_index++] = 37;
+            key_arr[1] = 1;
             break;
         case 22: //u
-            key_arr[key_index++] = 22;
+            key_arr[3] = 1;
             break;
     }
 }
