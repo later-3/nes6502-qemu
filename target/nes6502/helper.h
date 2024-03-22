@@ -31,5 +31,12 @@ DEF_HELPER_2(psw_write, void, env, i32)
 DEF_HELPER_1(psw_read, i32, env)
 
 DEF_HELPER_2(print_opval, void, env, i32)
+DEF_HELPER_2(print_pushb_data, void, env, i32)
+DEF_HELPER_2(print_pushw_data, void, env, i32)
+DEF_HELPER_2(print_popb_data, void, env, i32)
+DEF_HELPER_2(print_popw_data, void, env, i32)
 DEF_HELPER_3(print_flag, void, env, i32, i32)
 DEF_HELPER_1(print_P, void, env)
+DEF_HELPER_1(print_sp, void, env)
+DEF_HELPER_1(print_x, void, env)
+

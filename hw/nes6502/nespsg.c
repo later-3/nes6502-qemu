@@ -57,7 +57,7 @@ static int nes_psg_query_key(int ch)
 
 static int nes_psg_key_state(int b)
 {
-    printf("query key %d\n", b);
+    // printf("query key %d\n", b);
     switch (b) // w 17 a 30 d 32 s 31 i 23  j 36 k 37
     {
         case 0: // On / Off

@@ -47,6 +47,36 @@ void helper_print_flag(CPUNES6502State *env, uint32_t val, uint32_t index)
     printf("print_flag val 0x%x, flag %s\n", val, flag_arr[index]);
 }
 
+void helper_print_sp(CPUNES6502State *env)
+{
+    printf("print_sp 0x%x\n", env->stack_point);
+}
+
+void helper_print_x(CPUNES6502State *env)
+{
+    printf("print_x 0x%x\n", env->reg_X);
+}
+
+void helper_print_pushb_data(CPUNES6502State *env, uint32_t val)
+{
+    printf("print_pushb data 0x%x\n", val);
+}
+
+void helper_print_pushw_data(CPUNES6502State *env, uint32_t val)
+{
+    printf("print_pushw data 0x%x\n", val);
+}
+
+void helper_print_popb_data(CPUNES6502State *env, uint32_t val)
+{
+    printf("print_popb data 0x%x\n", val);
+}
+
+void helper_print_popw_data(CPUNES6502State *env, uint32_t val)
+{
+    printf("print_popw data 0x%x\n", val);
+}
+
 void helper_print_P(CPUNES6502State *env)
 {
     printf("flag name %s, val 0x%x, \n", flag_arr[0], env->carry_flag);
