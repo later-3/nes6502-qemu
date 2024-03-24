@@ -372,3 +372,11 @@ static void __attribute((constructor)) litenes_cpu_init(void)
 //     }
 // }
 
+FILE *g_fp;
+void init_log(void)
+{
+    if (g_fp) {
+        return;
+    }
+   g_fp = fopen("./log.txt", "w+");
+}

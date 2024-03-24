@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "exec/address-spaces.h"
 #include "exec/helper-proto.h"
+#include "litenes_cpu.h"
 
 static const char *flag_arr[8] = {
     "carry_flag",
@@ -39,7 +40,7 @@ static const char *flag_arr[8] = {
 
 void helper_print_opval(CPUNES6502State *env, uint32_t val)
 {
-    printf("print_flag opval 0x%x\n", val);
+    printf("print_val 0x%x\n", val);
 }
 
 void helper_print_flag(CPUNES6502State *env, uint32_t val, uint32_t index)
@@ -55,6 +56,35 @@ void helper_print_sp(CPUNES6502State *env)
 void helper_print_x(CPUNES6502State *env)
 {
     printf("print_x 0x%x\n", env->reg_X);
+}
+
+void helper_print_zero_flag(CPUNES6502State *env)
+{
+    // printf("print_zero_flag 0x%x\n", env->zero_flag);
+    // fprintf(g_fp, "zero_flag 0x%x\n", env->zero_flag);
+}
+
+void helper_print_carry_flag(CPUNES6502State *env)
+{
+    // printf("print_zero_flag 0x%x\n", env->zero_flag);
+    fprintf(g_fp, "carry_flag 0x%x\n", env->carry_flag);
+}
+
+void helper_print_a(CPUNES6502State *env)
+{
+    printf("print_a 0x%x\n", env->reg_A);
+    fprintf(g_fp, "registe A 0x%x\n", env->reg_A);
+}
+
+void helper_print_cpu_ram_b(CPUNES6502State *env, uint32_t ind)
+{
+    if (ind != 0) {
+        return;
+    }
+    int val = cpu_ldub_data(env, ind);
+    // printf("print_a 0x%x\n", env->reg_A);
+    fprintf(g_fp, "cpu_ram_b ind: 0x%x, val_b: 0x%x\n", ind, val);
+    printf("cpu_ram_b ind: 0x%x, val_b: 0x%x\n", ind, val);
 }
 
 void helper_print_pushb_data(CPUNES6502State *env, uint32_t val)

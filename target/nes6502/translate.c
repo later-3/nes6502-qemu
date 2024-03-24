@@ -253,18 +253,20 @@ static void cpu_address_indirect(uint16_t addr)
 {
     if ((addr & 0xFF) == 0xFF) {
         // Buggy code
-        addr &= 0xFF00;
         TCGv tmp = tcg_temp_new();
-        tcg_gen_movi_tl(tmp, addr);
+        tcg_gen_movi_tl(tmp, addr & 0xFF00);
         tcg_gen_qemu_ld_tl(tmp, tmp, 0, MO_UB);
         tcg_gen_shli_tl(tmp, tmp, 8);
+
+        tcg_gen_movi_tl(tmp, addr);
         tcg_gen_qemu_ld_tl(op_address, tmp, 0, MO_UB);
         tcg_gen_add_tl(op_address, op_address, tmp);
     }
     else {
         // Normal code
-        tcg_gen_movi_tl(op_address, addr);
-        tcg_gen_qemu_ld_tl(op_address, op_address, 0, MO_UW);
+        TCGv tmp = tcg_temp_new();
+        tcg_gen_movi_tl(tmp, addr);
+        tcg_gen_qemu_ld_tl(op_address, tmp, 0, MO_UW);
     }
 }
 
@@ -275,20 +277,20 @@ static void cpu_address_indirect_x(uint8_t imm)
     tcg_gen_movi_tl(tmp, imm);
 
     tcg_gen_add_tl(tmp, tmp, cpu_X);
-    TCGv addr2 = tcg_temp_new();
-
-    tcg_gen_andi_tl(addr2, tmp, 0xFF);
-    tcg_gen_qemu_ld_tl(addr2, tmp, 0, MO_UB);
-
-
     tcg_gen_addi_tl(tmp, tmp, 1);
-    TCGv addr1 = tcg_temp_new();
+    tcg_gen_andi_tl(tmp, tmp, 0xFF);
 
-    tcg_gen_andi_tl(addr1, tmp, 0xFF);
-    tcg_gen_qemu_ld_tl(addr1, tmp, 0, MO_UB);
-    tcg_gen_shli_tl(addr1, addr1, 8);
+    TCGv val1 = tcg_temp_new();
+    tcg_gen_qemu_ld_tl(val1, tmp, 0, MO_UB);
+    tcg_gen_shli_tl(val1, val1, 8);
 
-    tcg_gen_or_tl(op_address, addr1, addr2);
+    TCGv val2 = tcg_temp_new();
+    tcg_gen_movi_tl(tmp, imm);
+    tcg_gen_add_tl(tmp, tmp, cpu_X);
+    tcg_gen_andi_tl(tmp, tmp, 0xFF);
+
+    tcg_gen_qemu_ld_tl(val2, tmp, 0, MO_UB);
+    tcg_gen_or_tl(op_address, val1, val2);
 
     tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
 }
@@ -299,19 +301,20 @@ static void cpu_address_indirect_y(uint8_t imm)
 
     TCGv tmp = tcg_temp_new();
     tcg_gen_movi_tl(tmp, imm);
-
-    TCGv addr2 = tcg_temp_new();
-    tcg_gen_qemu_ld_tl(addr2, tmp, 0, MO_UB);
-
     tcg_gen_addi_tl(tmp, tmp, 1);
-    TCGv addr1 = tcg_temp_new();
-    tcg_gen_andi_tl(addr1, tmp, 0xFF);
-    tcg_gen_qemu_ld_tl(addr1, tmp, 0, MO_UB);
-    tcg_gen_shli_tl(addr1, addr1, 8);
 
-    tcg_gen_or_tl(op_address, addr1, addr2);
-    tcg_gen_add_tl(op_address, op_address, cpu_Y);
-    tcg_gen_andi_tl(op_address, op_address, 0xFFFF);
+    TCGv val1 = tcg_temp_new();
+    tcg_gen_andi_tl(tmp, tmp, 0xFF);
+    tcg_gen_qemu_ld_tl(val1, tmp, 0, MO_UB);
+    tcg_gen_shli_tl(val1, val1, 8);
+
+    TCGv val2 = tcg_temp_new();
+    tcg_gen_movi_tl(tmp, imm);
+    tcg_gen_qemu_ld_tl(val2, tmp, 0, MO_UB);
+    tcg_gen_or_tl(val1, val1, val2);
+
+    tcg_gen_add_tl(val2, val1, cpu_Y);
+    tcg_gen_andi_tl(op_address, val2, 0xFFFF);
 
     tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
 }
@@ -465,6 +468,10 @@ static bool trans_ADC_INDIRECT_Y(DisasContext *ctx, arg_ADC_INDIRECT_Y *a)
 
 static void trans_SBC_common(void)
 {
+    gen_helper_print_carry_flag(cpu_env);
+    gen_helper_print_a(cpu_env);
+    gen_helper_print_opval(cpu_env, op_value);
+
     TCGv res = tcg_temp_new();
     cpu_flag_set(cpu_carry_flag, res, 0);
 
@@ -493,6 +500,8 @@ static void trans_SBC_common(void)
 
     tcg_gen_andi_tl(cpu_A, r, 0xFF);
     cpu_update_zn_flags(cpu_A);
+
+    gen_helper_print_carry_flag(cpu_env);
 }
 
 
@@ -514,6 +523,7 @@ static bool trans_SBC_ZEROPAGE_X(DisasContext *ctx, arg_SBC_ZEROPAGE_X *a)
 {
     cpu_address_zero_page_x(a->imm);
     trans_SBC_common();
+
     return true;
 }
 
@@ -620,6 +630,8 @@ static bool trans_BEQ(DisasContext *ctx, arg_BEQ *a)
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_zero_flag, tmp, 1);
+
+    gen_helper_print_zero_flag(cpu_env);
 
     cpu_branch(ctx, TCG_COND_EQ, tmp, 1, addr); 
     return true;
@@ -747,9 +759,15 @@ static void cpu_pack_p(void)
     tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_negative_flag, tmp, 0x80);
 }
 
+static void nes6502_st_tl(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
+{
+    gen_helper_print_cpu_ram_b(cpu_env, addr);
+    tcg_gen_qemu_st_tl(val, addr, idx, memop);
+}
+
 static void cpu_stack_pushb_tcg(TCGv addr, TCGv tmp)
 {
-    tcg_gen_qemu_st_tl(tmp, addr, 0, MO_UB);
+    nes6502_st_tl(tmp, addr, 0, MO_UB);
     tcg_gen_subi_tl(cpu_stack_point, cpu_stack_point, 1);
     tcg_gen_andi_tl(cpu_stack_point, cpu_stack_point, 0xFF);
 }
@@ -785,8 +803,8 @@ static void cpu_stack_pushb_a(TCGv tmp)
     tcg_gen_addi_tl(addr, cpu_stack_point, 0x100);
     tcg_gen_andi_tl(addr, addr, 0xFFFF);
     
-    gen_helper_print_pushb_data(cpu_env, tmp);
-    gen_helper_print_sp(cpu_env);
+    // gen_helper_print_pushb_data(cpu_env, tmp);
+    // gen_helper_print_sp(cpu_env);
 
     cpu_stack_pushb_tcg(addr, tmp);
 }
@@ -805,10 +823,10 @@ static void cpu_stack_pushw(uint16_t data)
     // tcg_gen_movi_tl(tmp, data>>8);
 
     // tcg_gen_qemu_st_tl(tmp, addr, 0, MO_UB);
-    tcg_gen_qemu_st_tl(tmp, addr, 0, MO_UW);
+    nes6502_st_tl(tmp, addr, 0, MO_UW);
 
-    gen_helper_print_pushw_data(cpu_env, tmp);
-    gen_helper_print_sp(cpu_env);
+    // gen_helper_print_pushw_data(cpu_env, tmp);
+    // gen_helper_print_sp(cpu_env);
 
     tcg_gen_subi_tl(cpu_stack_point, cpu_stack_point, 2);
     tcg_gen_andi_tl(cpu_stack_point, cpu_stack_point, 0xFF);
@@ -829,8 +847,8 @@ static void cpu_stack_popb(TCGv val)
 
     tcg_gen_qemu_ld_tl(val, tmp, 0, MO_UB);
 
-    gen_helper_print_popb_data(cpu_env, val);
-    gen_helper_print_sp(cpu_env);
+    // gen_helper_print_popb_data(cpu_env, val);
+    // gen_helper_print_sp(cpu_env);
 }
 
 static void cpu_stack_popw(TCGv val)
@@ -845,9 +863,8 @@ static void cpu_stack_popw(TCGv val)
 
     tcg_gen_qemu_ld_tl(val, tmp, 0, MO_UW);
 
-    gen_helper_print_popw_data(cpu_env, val);
-    gen_helper_print_sp(cpu_env);
-
+    // gen_helper_print_popw_data(cpu_env, val);
+    // gen_helper_print_sp(cpu_env);
 }
 
 static bool trans_RTS(DisasContext *ctx, arg_RTS *a)
@@ -983,7 +1000,7 @@ static bool trans_LDX_ABSOLUTE(DisasContext *ctx, arg_LDX_ABSOLUTE *a)
     // printf("trans_LDX_ABSOLUTE\n");
     cpu_address_absolute(a->addr2 <<8 | a->addr1);
     tcg_gen_mov_tl(cpu_X, op_value);
-    gen_helper_print_x(cpu_env);
+    // gen_helper_print_x(cpu_env);
 
     cpu_update_zn_flags(cpu_X);
     return true;
@@ -1040,14 +1057,18 @@ static bool trans_LDY_ABSOLUTE_X(DisasContext *ctx, arg_LDY_ABSOLUTE_X *a)
 static bool trans_STA_ZEROPAGE(DisasContext *ctx, arg_STA_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
-    tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
+    // gen_helper_print_cpu_ram_b(cpu_env, op_address);
+    nes6502_st_tl(cpu_A, op_address, 0, MO_UB);
+    // gen_helper_print_a(cpu_env);
+    // gen_helper_print_cpu_ram_b(cpu_env, op_address);
+
     return true;
 }
 
 static bool trans_STA_ZEROPAGE_X(DisasContext *ctx, arg_STA_ZEROPAGE_X *a)
 {
     cpu_address_zero_page_x(a->imm);
-    tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_A, op_address, 0, MO_UB);
  
     return true;
 }
@@ -1056,21 +1077,21 @@ static bool trans_STA_ABSOLUTE(DisasContext *ctx, arg_STA_ABSOLUTE *a)
 {
     cpu_address_absolute(a->addr2 << 8 | a->addr1);
 
-    tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_A, op_address, 0, MO_UB);
     return true;
 }
 
 static bool trans_STA_ABSOLUTE_X(DisasContext *ctx, arg_STA_ABSOLUTE_X *a)
 {
     cpu_address_absolute_x(a->addr2 <<8 | a->addr1);
-    tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_A, op_address, 0, MO_UB);
     return true;
 }
 
 static bool trans_STA_ABSOLUTE_Y(DisasContext *ctx, arg_STA_ABSOLUTE_Y *a)
 {
     cpu_address_absolute_y(a->addr2 <<8 | a->addr1);
-    tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_A, op_address, 0, MO_UB);
 
     return true;
 }
@@ -1078,7 +1099,7 @@ static bool trans_STA_ABSOLUTE_Y(DisasContext *ctx, arg_STA_ABSOLUTE_Y *a)
 static bool trans_STA_INDIRECT_X(DisasContext *ctx, arg_STA_INDIRECT_X *a)
 {
     cpu_address_indirect_x(a->imm);
-    tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_A, op_address, 0, MO_UB);
  
     return true;
 }
@@ -1086,7 +1107,7 @@ static bool trans_STA_INDIRECT_X(DisasContext *ctx, arg_STA_INDIRECT_X *a)
 static bool trans_STA_INDIRECT_Y(DisasContext *ctx, arg_STA_INDIRECT_Y *a)
 {
     cpu_address_indirect_y(a->imm);
-    tcg_gen_qemu_st_tl(cpu_A, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_A, op_address, 0, MO_UB);
  
     return true;
 }
@@ -1094,7 +1115,7 @@ static bool trans_STA_INDIRECT_Y(DisasContext *ctx, arg_STA_INDIRECT_Y *a)
 static bool trans_STX_ZEROPAGE(DisasContext *ctx, arg_STX_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
-    tcg_gen_qemu_st_tl(cpu_X, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_X, op_address, 0, MO_UB);
 
     return true;
 }
@@ -1102,28 +1123,28 @@ static bool trans_STX_ZEROPAGE(DisasContext *ctx, arg_STX_ZEROPAGE *a)
 static bool trans_STX_ZEROPAGE_Y(DisasContext *ctx, arg_STX_ZEROPAGE_Y *a)
 {
     cpu_address_zero_page_y(a->imm);
-    tcg_gen_qemu_st_tl(cpu_X, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_X, op_address, 0, MO_UB);
     return true;
 }
 
 static bool trans_STX_ABSOLUTE(DisasContext *ctx, arg_STX_ABSOLUTE *a)
 {
     cpu_address_absolute(a->addr2 <<8 | a->addr1);
-    tcg_gen_qemu_st_tl(cpu_X, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_X, op_address, 0, MO_UB);
     return true;
 }
 
 static bool trans_STY_ZEROPAGE(DisasContext *ctx, arg_STY_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
-    tcg_gen_qemu_st_tl(cpu_Y, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_Y, op_address, 0, MO_UB);
     return true;
 }
 
 static bool trans_STY_ZEROPAGE_X(DisasContext *ctx, arg_STY_ZEROPAGE_X *a)
 {
     cpu_address_zero_page_x(a->imm);
-    tcg_gen_qemu_st_tl(cpu_Y, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_Y, op_address, 0, MO_UB);
  
     return true;
 }
@@ -1131,7 +1152,7 @@ static bool trans_STY_ZEROPAGE_X(DisasContext *ctx, arg_STY_ZEROPAGE_X *a)
 static bool trans_STY_ABSOLUTE(DisasContext *ctx, arg_STY_ABSOLUTE *a)
 {
     cpu_address_absolute(a->addr2 <<8 | a->addr1);
-    tcg_gen_qemu_st_tl(cpu_Y, op_address, 0, MO_UB);
+    nes6502_st_tl(cpu_Y, op_address, 0, MO_UB);
     return true;
 }
 
@@ -1387,7 +1408,7 @@ static void asl_common(void)
     tcg_gen_shli_tl(op_value, op_value, 1);
     tcg_gen_andi_tl(op_value, op_value, 0xFF);
     cpu_update_zn_flags(op_value);
-    tcg_gen_qemu_st_tl(op_value, op_address, 0, MO_UB);
+    nes6502_st_tl(op_value, op_address, 0, MO_UB);
 }
 
 static bool trans_ASL_ZEROPAGE(DisasContext *ctx, arg_ASL_ZEROPAGE *a)
@@ -1441,7 +1462,7 @@ static void lsr_common(void)
     tcg_gen_shri_tl(op_value, op_value, 1);
     tcg_gen_andi_tl(op_value, op_value, 0xFF);
 
-    tcg_gen_qemu_st_tl(op_value, op_address, 0, MO_UB);
+    nes6502_st_tl(op_value, op_address, 0, MO_UB);
     cpu_update_zn_flags(op_value);
 
 }
@@ -1507,7 +1528,7 @@ static void rol_common(void)
     cpu_modify_flag(cpu_carry_flag, v);
 
     tcg_gen_andi_tl(op_value, op_value, 0xFF);
-    tcg_gen_qemu_st_tl(op_value, op_address, 0, MO_UB);
+    nes6502_st_tl(op_value, op_address, 0, MO_UB);
     cpu_update_zn_flags(op_value);
 }
 
@@ -1598,7 +1619,7 @@ static void ror_common(void)
     tcg_gen_not_tl(carry, carry);
     cpu_modify_flag(cpu_negative_flag, carry);
 
-    tcg_gen_qemu_st_tl(op_value, op_address, 0, MO_UB);
+    nes6502_st_tl(op_value, op_address, 0, MO_UB);
 
 }
 
@@ -1861,7 +1882,7 @@ static void inc_common(void)
     tcg_gen_addi_tl(result, op_value, 1);
     tcg_gen_andi_tl(result, result, 0xFF);
 
-    tcg_gen_qemu_st_tl(result, op_address, 0, MO_UB);
+    nes6502_st_tl(result, op_address, 0, MO_UB);
 
     cpu_update_zn_flags(result);
 }
@@ -1924,7 +1945,7 @@ static void dec_common(void)
     tcg_gen_subi_tl(result, op_value, 1);
     tcg_gen_andi_tl(result, result, 0xFF);
 
-    tcg_gen_qemu_st_tl(result, op_address, 0, MO_UB);
+    nes6502_st_tl(result, op_address, 0, MO_UB);
     cpu_update_zn_flags(result);
 }
 
@@ -2050,14 +2071,6 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
     return true;
 }
 
-static FILE *g_fp;
-static void init_log(void)
-{
-    if (g_fp) {
-        return;
-    }
-   g_fp = fopen("./log.txt", "w+");
-}
 
 /*
  *  Core translation mechanism functions:
