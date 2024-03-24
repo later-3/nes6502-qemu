@@ -174,11 +174,17 @@ static uint32_t decode_insn_load(DisasContext *ctx);
 static bool decode_insn(DisasContext *ctx, uint32_t insn);
 #include "decode-insn.c.inc"
 
+static void nes6502_ld_tl(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
+{
+    gen_helper_print_cpu_ram_ld_b(cpu_env, addr);
+    tcg_gen_qemu_ld_tl(val, addr, idx, memop);
+}
+
 // CPU Addressing Modes
 static void cpu_address_zero_page(uint8_t addr)
 {
     tcg_gen_movi_tl(op_address, addr);
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    nes6502_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
 static void cpu_address_zero_page_x(uint8_t imm)
@@ -187,7 +193,7 @@ static void cpu_address_zero_page_x(uint8_t imm)
     tcg_gen_addi_tl(tmp, cpu_X, imm);
     tcg_gen_andi_tl(op_address, tmp, 0xFF);
 
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    nes6502_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
 static void cpu_address_zero_page_y(uint8_t imm)
@@ -196,13 +202,13 @@ static void cpu_address_zero_page_y(uint8_t imm)
     tcg_gen_addi_tl(tmp, cpu_Y, imm);
     tcg_gen_andi_tl(op_address, tmp, 0xFF);
 
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    nes6502_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
 static void cpu_address_absolute(uint16_t addr)
 {
     tcg_gen_movi_tl(op_address, addr);
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_8);
+    nes6502_ld_tl(op_value, op_address, 0, MO_8);
     
     // gen_helper_print_opval(cpu_env, op_value);
     
@@ -214,7 +220,7 @@ static void cpu_address_absolute(uint16_t addr)
     // TCGv mem;
     // mem = tcg_temp_new();
     // tcg_gen_movi_tl(mem, 0x2002);
-    // tcg_gen_qemu_ld_tl(op_value, mem, 0, MO_8);
+    // nes6502_ld_tl(op_value, mem, 0, MO_8);
 
     // tcg_gen_movi_tl(op_address, 0x2000);
     // tcg_gen_qemu_ld_i32(op_value, op_address, 0, MO_32);
@@ -229,14 +235,14 @@ static void cpu_address_absolute(uint16_t addr)
 static void cpu_address_absolute_x(uint16_t addr)
 {
     tcg_gen_addi_tl(op_address, cpu_X, addr);
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    nes6502_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
 static void cpu_address_absolute_y(uint16_t addr)
 {
     tcg_gen_addi_tl(op_address, cpu_Y, addr);
     tcg_gen_andi_tl(op_address, op_address, 0xFFFF);
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    nes6502_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
 static int cpu_address_relative(DisasContext *ctx, uint8_t imm)
@@ -255,18 +261,18 @@ static void cpu_address_indirect(uint16_t addr)
         // Buggy code
         TCGv tmp = tcg_temp_new();
         tcg_gen_movi_tl(tmp, addr & 0xFF00);
-        tcg_gen_qemu_ld_tl(tmp, tmp, 0, MO_UB);
+        nes6502_ld_tl(tmp, tmp, 0, MO_UB);
         tcg_gen_shli_tl(tmp, tmp, 8);
 
         tcg_gen_movi_tl(tmp, addr);
-        tcg_gen_qemu_ld_tl(op_address, tmp, 0, MO_UB);
+        nes6502_ld_tl(op_address, tmp, 0, MO_UB);
         tcg_gen_add_tl(op_address, op_address, tmp);
     }
     else {
         // Normal code
         TCGv tmp = tcg_temp_new();
         tcg_gen_movi_tl(tmp, addr);
-        tcg_gen_qemu_ld_tl(op_address, tmp, 0, MO_UW);
+        nes6502_ld_tl(op_address, tmp, 0, MO_UW);
     }
 }
 
@@ -281,7 +287,7 @@ static void cpu_address_indirect_x(uint8_t imm)
     tcg_gen_andi_tl(tmp, tmp, 0xFF);
 
     TCGv val1 = tcg_temp_new();
-    tcg_gen_qemu_ld_tl(val1, tmp, 0, MO_UB);
+    nes6502_ld_tl(val1, tmp, 0, MO_UB);
     tcg_gen_shli_tl(val1, val1, 8);
 
     TCGv val2 = tcg_temp_new();
@@ -289,10 +295,10 @@ static void cpu_address_indirect_x(uint8_t imm)
     tcg_gen_add_tl(tmp, tmp, cpu_X);
     tcg_gen_andi_tl(tmp, tmp, 0xFF);
 
-    tcg_gen_qemu_ld_tl(val2, tmp, 0, MO_UB);
+    nes6502_ld_tl(val2, tmp, 0, MO_UB);
     tcg_gen_or_tl(op_address, val1, val2);
 
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    nes6502_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
 
@@ -305,18 +311,18 @@ static void cpu_address_indirect_y(uint8_t imm)
 
     TCGv val1 = tcg_temp_new();
     tcg_gen_andi_tl(tmp, tmp, 0xFF);
-    tcg_gen_qemu_ld_tl(val1, tmp, 0, MO_UB);
+    nes6502_ld_tl(val1, tmp, 0, MO_UB);
     tcg_gen_shli_tl(val1, val1, 8);
 
     TCGv val2 = tcg_temp_new();
     tcg_gen_movi_tl(tmp, imm);
-    tcg_gen_qemu_ld_tl(val2, tmp, 0, MO_UB);
+    nes6502_ld_tl(val2, tmp, 0, MO_UB);
     tcg_gen_or_tl(val1, val1, val2);
 
     tcg_gen_add_tl(val2, val1, cpu_Y);
     tcg_gen_andi_tl(op_address, val2, 0xFFFF);
 
-    tcg_gen_qemu_ld_tl(op_value, op_address, 0, MO_UB);
+    nes6502_ld_tl(op_value, op_address, 0, MO_UB);
 }
 
 static void cpu_flag_set(TCGv flag, TCGv res, int value)
@@ -326,12 +332,26 @@ static void cpu_flag_set(TCGv flag, TCGv res, int value)
 
 static void cpu_modify_flag(TCGv flag, TCGv res)
 {
-    tcg_gen_setcondi_tl(TCG_COND_GT, flag, res, 0);
+    // TCGLabel *t, *done;
+
+    // t = gen_new_label();
+    // done = gen_new_label();
+    // tcg_gen_brcondi_i32(TCG_COND_EQ, res, 0, t);
+    // tcg_gen_movi_i32(flag, 1);
+    // tcg_gen_br(done);
+    // gen_set_label(t);
+    // tcg_gen_movi_i32(flag, 0);
+    // gen_set_label(done);
+
+    tcg_gen_andi_tl(res, res, 0xFF);
+
+    tcg_gen_setcondi_tl(TCG_COND_GTU, flag, res, 0);
 }
 
 static void cpu_update_z_flags(TCGv r)
 {
-
+    // gen_helper_print_zero_flag(cpu_env);
+    // gen_helper_print_opval(cpu_env, r);
     TCGLabel *t, *done;
 
     t = gen_new_label();
@@ -342,6 +362,9 @@ static void cpu_update_z_flags(TCGv r)
     gen_set_label(t);
     tcg_gen_movi_i32(cpu_zero_flag, 1);
     gen_set_label(done);
+
+    //  gen_helper_print_zero_flag(cpu_env);
+
 }
 
 static void cpu_update_n_flags(TCGv r)
@@ -373,6 +396,20 @@ static void cpu_update_zn_flags(TCGv r)
     // gen_helper_print_P(cpu_env);
 }
 
+static void nes6502_not_tl(TCGv arg, TCGv target)
+{
+    TCGLabel *t, *done;
+
+    t = gen_new_label();
+    done = gen_new_label();
+    tcg_gen_brcondi_i32(TCG_COND_EQ, arg, 0, t);
+    tcg_gen_movi_i32(target, 0);
+    tcg_gen_br(done);
+    gen_set_label(t);
+    tcg_gen_movi_i32(target, 1);
+    gen_set_label(done);
+}
+
 /*
  * Arithmetic Instructions
  */
@@ -388,8 +425,8 @@ static void trans_ADC_common(void)
 
     TCGv t = tcg_temp_new();
     tcg_gen_andi_tl(t, r, 0x100);
-    tcg_gen_not_tl(t, t);
-    tcg_gen_not_tl(t, t);
+    nes6502_not_tl(t, t);
+    nes6502_not_tl(t, t);
     cpu_modify_flag(cpu_carry_flag, t);
     
     TCGv t1 = tcg_temp_new();
@@ -401,8 +438,8 @@ static void trans_ADC_common(void)
     TCGv t3 = tcg_temp_new();
     tcg_gen_andc_tl(t3, t2, t1);
     tcg_gen_andi_tl(t3, t3, 0x80);
-    tcg_gen_not_tl(t3, t3);
-    tcg_gen_not_tl(t3, t3);
+    nes6502_not_tl(t3, t3);
+    nes6502_not_tl(t3, t3);
     
     cpu_modify_flag(cpu_overflow_flag, t3);
 
@@ -466,11 +503,13 @@ static bool trans_ADC_INDIRECT_Y(DisasContext *ctx, arg_ADC_INDIRECT_Y *a)
     return true;
 }
 
+
+
 static void trans_SBC_common(void)
 {
-    gen_helper_print_carry_flag(cpu_env);
-    gen_helper_print_a(cpu_env);
-    gen_helper_print_opval(cpu_env, op_value);
+    // gen_helper_print_carry_flag(cpu_env);
+    // gen_helper_print_a(cpu_env);
+    // gen_helper_print_opval(cpu_env, op_value);
 
     TCGv res = tcg_temp_new();
     cpu_flag_set(cpu_carry_flag, res, 0);
@@ -479,10 +518,21 @@ static void trans_SBC_common(void)
     tcg_gen_sub_tl(r, cpu_A, op_value);
     tcg_gen_sub_tl(r, r, res);
 
+    // gen_helper_print_opval(cpu_env, r);
+
     TCGv t = tcg_temp_new();
     tcg_gen_andi_tl(t, r, 0x100);
-    tcg_gen_not_tl(t, t);
-    cpu_modify_flag(cpu_carry_flag, t);
+
+    gen_helper_print_opval(cpu_env, t);
+
+    // tcg_gen_not_tl(t, t);
+
+    TCGv target = tcg_temp_new();
+    nes6502_not_tl(t, target);
+
+    gen_helper_print_opval(cpu_env, target);
+
+    cpu_modify_flag(cpu_carry_flag, target);
     
     TCGv t1 = tcg_temp_new();
     TCGv t2 = tcg_temp_new();
@@ -493,8 +543,8 @@ static void trans_SBC_common(void)
     TCGv t3 = tcg_temp_new();
     tcg_gen_and_tl(t3, t2, t1);
     tcg_gen_andi_tl(t3, t3, 0x80);
-    tcg_gen_not_tl(t3, t3);
-    tcg_gen_not_tl(t3, t3);
+    nes6502_not_tl(t3, t3);
+    nes6502_not_tl(t3, t3);
     
     cpu_modify_flag(cpu_overflow_flag, t3);
 
@@ -761,8 +811,8 @@ static void cpu_pack_p(void)
 
 static void nes6502_st_tl(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
 {
-    gen_helper_print_cpu_ram_b(cpu_env, addr);
     tcg_gen_qemu_st_tl(val, addr, idx, memop);
+    gen_helper_print_cpu_ram_st_b(cpu_env, addr);
 }
 
 static void cpu_stack_pushb_tcg(TCGv addr, TCGv tmp)
@@ -845,7 +895,7 @@ static void cpu_stack_popb(TCGv val)
 
     tcg_gen_andi_tl(tmp, tmp, 0xFFFF);
 
-    tcg_gen_qemu_ld_tl(val, tmp, 0, MO_UB);
+    nes6502_ld_tl(val, tmp, 0, MO_UB);
 
     // gen_helper_print_popb_data(cpu_env, val);
     // gen_helper_print_sp(cpu_env);
@@ -861,7 +911,7 @@ static void cpu_stack_popw(TCGv val)
     tcg_gen_addi_tl(tmp, cpu_stack_point, 0xff);
     tcg_gen_andi_tl(tmp, tmp, 0xFFFF);
 
-    tcg_gen_qemu_ld_tl(val, tmp, 0, MO_UW);
+    nes6502_ld_tl(val, tmp, 0, MO_UW);
 
     // gen_helper_print_popw_data(cpu_env, val);
     // gen_helper_print_sp(cpu_env);
@@ -906,6 +956,7 @@ static bool trans_LDA_ZEROPAGE(DisasContext *ctx, arg_LDA_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_A, op_value);
+    // gen_helper_print_a(cpu_env);
     cpu_update_zn_flags(cpu_A);
     return true;
 }
@@ -1584,8 +1635,8 @@ static bool trans_ROR_A(DisasContext *ctx, arg_ROR_A *a)
 
     cpu_modify_flag(cpu_zero_flag, t3);
 
-    tcg_gen_not_tl(carry, carry);
-    tcg_gen_not_tl(carry, carry);
+    nes6502_not_tl(carry, carry);
+    nes6502_not_tl(carry, carry);
     cpu_modify_flag(cpu_negative_flag, carry);
 
     return true;
@@ -1615,8 +1666,8 @@ static void ror_common(void)
 
     cpu_modify_flag(cpu_zero_flag, t3);
 
-    tcg_gen_not_tl(carry, carry);
-    tcg_gen_not_tl(carry, carry);
+    nes6502_not_tl(carry, carry);
+    nes6502_not_tl(carry, carry);
     cpu_modify_flag(cpu_negative_flag, carry);
 
     nes6502_st_tl(op_value, op_address, 0, MO_UB);
@@ -1663,15 +1714,24 @@ static void bit_common(void)
     TCGv t = tcg_temp_new();
     tcg_gen_and_tl(t, cpu_A, op_value);
 
-    tcg_gen_not_tl(t, t);
+    nes6502_not_tl(t, t);
     cpu_modify_flag(cpu_zero_flag, t);
+
+    tcg_gen_andi_tl(t, P, 0x3F);
+    TCGv t2 = tcg_temp_new();
+    tcg_gen_andi_tl(t2, op_value, 0xc0);
+    tcg_gen_or_tl(t, t, t2);
+    tcg_gen_mov_tl(P, t);
+
+    gen_helper_psw_write(cpu_env, P);
+
     // print_neg();
-    tcg_gen_andi_tl(t, op_value, 0x80);
-    cpu_modify_flag(cpu_negative_flag, t);
+    // tcg_gen_andi_tl(t, op_value, 0x80);
+    // cpu_modify_flag(cpu_negative_flag, t);
     // print_neg();
 
-    tcg_gen_andi_tl(t, op_value, 0x40);
-    cpu_modify_flag(cpu_overflow_flag, t);
+    // tcg_gen_andi_tl(t, op_value, 0x40);
+    // cpu_modify_flag(cpu_overflow_flag, t);
 }
 
 static bool trans_BIT_ZEROPAGE(DisasContext *ctx, arg_BIT_ZEROPAGE *a)
@@ -2062,7 +2122,7 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
 
     TCGv nmi_addr = tcg_temp_new();
     tcg_gen_movi_tl(nmi_addr, 0xFFFA);
-    tcg_gen_qemu_ld_tl(cpu_pc, nmi_addr, 0, MO_UW);
+    nes6502_ld_tl(cpu_pc, nmi_addr, 0, MO_UW);
     ctx->base.is_jmp = DISAS_JUMP;
 
     // cpu_stack_popw(cpu_pc);
@@ -2088,6 +2148,10 @@ static void translate(DisasContext *ctx)
     opcode = decode_insn_load(ctx);
     uint16_t op = opcode >> 24;
 
+/*
+opcode 0xa5 pc 0xc1e1 LDA zero_page
+opcode 0xf0 pc 0xc1e3 BEQ relative
+*/
     printf("opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
     fprintf(g_fp, "opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
     if (!decode_insn(ctx, opcode)) {

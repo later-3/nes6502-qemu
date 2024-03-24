@@ -40,7 +40,8 @@ static const char *flag_arr[8] = {
 
 void helper_print_opval(CPUNES6502State *env, uint32_t val)
 {
-    printf("print_val 0x%x\n", val);
+    // printf("print_val 0x%x\n", val);
+    fprintf(g_fp, "print_val 0x%x\n", val);
 }
 
 void helper_print_flag(CPUNES6502State *env, uint32_t val, uint32_t index)
@@ -76,15 +77,26 @@ void helper_print_a(CPUNES6502State *env)
     fprintf(g_fp, "registe A 0x%x\n", env->reg_A);
 }
 
-void helper_print_cpu_ram_b(CPUNES6502State *env, uint32_t ind)
+void helper_print_cpu_ram_st_b(CPUNES6502State *env, uint32_t ind)
 {
     if (ind != 0) {
         return;
     }
     int val = cpu_ldub_data(env, ind);
     // printf("print_a 0x%x\n", env->reg_A);
-    fprintf(g_fp, "cpu_ram_b ind: 0x%x, val_b: 0x%x\n", ind, val);
-    printf("cpu_ram_b ind: 0x%x, val_b: 0x%x\n", ind, val);
+    fprintf(g_fp, "cpu_ram_b st ind: 0x%x, val_b: 0x%x\n", ind, val);
+    printf("cpu_ram_b st ind: 0x%x, val_b: 0x%x\n", ind, val);
+}
+
+void helper_print_cpu_ram_ld_b(CPUNES6502State *env, uint32_t ind)
+{
+    if (ind != 0) {
+        return;
+    }
+    int val = cpu_ldub_data(env, ind);
+    // printf("print_a 0x%x\n", env->reg_A);
+    fprintf(g_fp, "cpu_ram_b ld ind: 0x%x, val_b: 0x%x\n", ind, val);
+    printf("cpu_ram_b ld ind: 0x%x, val_b: 0x%x\n", ind, val);
 }
 
 void helper_print_pushb_data(CPUNES6502State *env, uint32_t val)
