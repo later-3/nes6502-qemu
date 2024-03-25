@@ -595,7 +595,7 @@ static bool trans_SBC_ABSOLUTE_X(DisasContext *ctx, arg_SBC_ABSOLUTE_X *a)
 
 static bool trans_SBC_ABSOLUTE_Y(DisasContext *ctx, arg_SBC_ABSOLUTE_Y *a)
 {
-    cpu_address_absolute_x( a->addr2 <<8 | a->addr1);
+    cpu_address_absolute_y( a->addr2 <<8 | a->addr1);
     trans_SBC_common();
     return true;
 }
