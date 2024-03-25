@@ -954,6 +954,7 @@ static bool trans_RTI(DisasContext *ctx, arg_RTI *a)
 static bool trans_LDA_IM(DisasContext *ctx, arg_LDA_IM *a)
 {
     tcg_gen_movi_i32(cpu_A, a->imm);
+    // gen_helper_print_a(cpu_env);
     cpu_update_zn_flags(cpu_A);
     return true;
 }
@@ -2096,6 +2097,8 @@ static bool trans_DEY(DisasContext *ctx, arg_DEY *a)
 
 static bool trans_PHP(DisasContext *ctx, arg_PHP *a)
 {
+    gen_helper_psw_read(cpu_env);
+
     TCGv status = tcg_temp_new_i32();
     tcg_gen_ori_tl(status, P, 0x30);
     cpu_stack_pushb_a(status);
@@ -2112,6 +2115,7 @@ static bool trans_PHA(DisasContext *ctx, arg_PHA *a)
 static bool trans_PLA(DisasContext *ctx, arg_PLA *a)
 {
     cpu_stack_popb(cpu_A);
+    // gen_helper_print_a(cpu_env);
     cpu_update_zn_flags(cpu_A);
     return true;
 }

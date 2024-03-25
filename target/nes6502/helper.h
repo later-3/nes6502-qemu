@@ -28,7 +28,7 @@ DEF_HELPER_2(inb, tl, env, i32)
 DEF_HELPER_3(fullwr, void, env, i32, i32)
 DEF_HELPER_2(fullrd, tl, env, i32)
 DEF_HELPER_2(psw_write, void, env, i32)
-DEF_HELPER_1(psw_read, i32, env)
+DEF_HELPER_1(psw_read, void, env)
 
 DEF_HELPER_2(print_opval, void, env, i32)
 DEF_HELPER_2(print_cpu_ram_st_b, void, env, i32)

@@ -132,7 +132,7 @@ void helper_print_P(CPUNES6502State *env)
     printf("\n");
 }
 
-uint32_t helper_psw_read(CPUNES6502State *env)
+void helper_psw_read(CPUNES6502State *env)
 {
     uint32_t p = 0;
     p |= env->carry_flag;
@@ -144,7 +144,7 @@ uint32_t helper_psw_read(CPUNES6502State *env)
     p |= env->overflow_flag << 6;
     p |= env->negative_flag << 7;
     env->P = p;
-    return p;
+    // return p;
 }
 
 void helper_psw_write(CPUNES6502State *env, uint32_t val)
