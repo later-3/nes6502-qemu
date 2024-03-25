@@ -373,7 +373,7 @@ static void __attribute((constructor)) litenes_cpu_init(void)
 // }
 
 FILE *g_fp;
-void init_log(void)
+void  __attribute__((__constructor__)) init_log(void)
 {
     if (g_fp) {
         return;
