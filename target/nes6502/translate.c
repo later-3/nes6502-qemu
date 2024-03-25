@@ -459,13 +459,14 @@ static bool trans_ADC_IM(DisasContext *ctx, arg_ADC_IM *a)
 static bool trans_ADC_ZEROPAGE(DisasContext *ctx, arg_ADC_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
+    gen_helper_print_opval(cpu_env, op_value);
     trans_ADC_common();
     return true;
 }
 
 static bool trans_ADC_ZEROPAGE_X(DisasContext *ctx, arg_ADC_ZEROPAGE_X *a)
 {
-    cpu_address_zero_page(a->imm);
+    cpu_address_zero_page_x(a->imm);
     trans_ADC_common();
     return true;
 }
