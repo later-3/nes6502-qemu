@@ -551,7 +551,7 @@ static void trans_SBC_common(void)
     tcg_gen_andi_tl(cpu_A, r, 0xFF);
     cpu_update_zn_flags(cpu_A);
 
-    gen_helper_print_carry_flag(cpu_env);
+    // gen_helper_print_carry_flag(cpu_env);
 }
 
 
@@ -665,7 +665,7 @@ static bool trans_BCS(DisasContext *ctx, arg_BCS *a)
     // tcg_gen_movi_i32(t, 0);
     // gen_helper_print_flag(cpu_env, cpu_carry_flag, t);
     
-    gen_helper_print_carry_flag(cpu_env);
+    // gen_helper_print_carry_flag(cpu_env);
 
     TCGv tmp = tcg_temp_new();
     cpu_flag_set(cpu_carry_flag, tmp, 1);
@@ -925,7 +925,7 @@ static bool trans_RTS(DisasContext *ctx, arg_RTS *a)
     cpu_stack_popw(val);
 
     tcg_gen_addi_tl(cpu_pc, val, 1);
-    gen_helper_print_carry_flag(cpu_env);
+    // gen_helper_print_carry_flag(cpu_env);
 
     ctx->base.is_jmp = DISAS_JUMP;
     return true;
@@ -960,7 +960,7 @@ static bool trans_LDA_ZEROPAGE(DisasContext *ctx, arg_LDA_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_A, op_value);
-    // gen_helper_print_a(cpu_env);
+    gen_helper_print_a(cpu_env);
     cpu_update_zn_flags(cpu_A);
     return true;
 }
@@ -1441,7 +1441,7 @@ static bool trans_ORA_ABSOLUTE_Y(DisasContext *ctx, arg_ORA_ABSOLUTE_Y *a)
 
 static bool trans_ORA_INDIRECT_X(DisasContext *ctx, arg_ORA_INDIRECT_X *a)
 {
-    gen_helper_print_carry_flag(cpu_env);
+    // gen_helper_print_carry_flag(cpu_env);
 
     cpu_address_indirect_x(a->imm);
     tcg_gen_or_tl(cpu_A, cpu_A, op_value);
@@ -1527,8 +1527,12 @@ static bool trans_LSR_A(DisasContext *ctx, arg_LSR_A *a)
 
 static void lsr_common(void)
 {
+    // gen_helper_print_carry_flag(cpu_env);
     TCGv tmp = tcg_temp_new();
     tcg_gen_andi_tl(tmp, op_value, 0x01);
+    cpu_modify_flag(cpu_carry_flag, tmp);
+
+    // gen_helper_print_carry_flag(cpu_env);
 
     tcg_gen_shri_tl(op_value, op_value, 1);
     tcg_gen_andi_tl(op_value, op_value, 0xFF);
@@ -1774,12 +1778,7 @@ static bool trans_BIT_ABSOLUTE(DisasContext *ctx, arg_BIT_ABSOLUTE *a)
 
 static bool trans_CLC(DisasContext *ctx, arg_CLC *a)
 {
-    gen_helper_print_carry_flag(cpu_env);
-
     tcg_gen_movi_tl(cpu_carry_flag, 0);
-
-    gen_helper_print_carry_flag(cpu_env);
-
     return true;
 }
 
