@@ -85,7 +85,7 @@ void helper_print_cpu_ram_st_b(CPUNES6502State *env, uint32_t ind)
     int val = cpu_ldub_data(env, ind);
     // printf("print_a 0x%x\n", env->reg_A);
     fprintf(g_fp, "cpu_ram_b st ind: 0x%x, val_b: 0x%x\n", ind, val);
-    printf("cpu_ram_b st ind: 0x%x, val_b: 0x%x\n", ind, val);
+    // printf("cpu_ram_b st ind: 0x%x, val_b: 0x%x\n", ind, val);
 }
 
 void helper_print_cpu_ram_ld_b(CPUNES6502State *env, uint32_t ind)
@@ -96,7 +96,7 @@ void helper_print_cpu_ram_ld_b(CPUNES6502State *env, uint32_t ind)
     int val = cpu_ldub_data(env, ind);
     // printf("print_a 0x%x\n", env->reg_A);
     fprintf(g_fp, "cpu_ram_b ld ind: 0x%x, val_b: 0x%x\n", ind, val);
-    printf("cpu_ram_b ld ind: 0x%x, val_b: 0x%x\n", ind, val);
+    // printf("cpu_ram_b ld ind: 0x%x, val_b: 0x%x\n", ind, val);
 }
 
 void helper_print_pushb_data(CPUNES6502State *env, uint32_t val)

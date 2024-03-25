@@ -264,8 +264,10 @@ static void cpu_address_indirect(uint16_t addr)
         nes6502_ld_tl(tmp, tmp, 0, MO_UB);
         tcg_gen_shli_tl(tmp, tmp, 8);
 
-        tcg_gen_movi_tl(tmp, addr);
-        nes6502_ld_tl(op_address, tmp, 0, MO_UB);
+        TCGv tmp1 = tcg_temp_new();
+
+        tcg_gen_movi_tl(tmp1, addr);
+        nes6502_ld_tl(op_address, tmp1, 0, MO_UB);
         tcg_gen_add_tl(op_address, op_address, tmp);
     }
     else {
@@ -960,7 +962,7 @@ static bool trans_LDA_ZEROPAGE(DisasContext *ctx, arg_LDA_ZEROPAGE *a)
 {
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_A, op_value);
-    gen_helper_print_a(cpu_env);
+    // gen_helper_print_a(cpu_env);
     cpu_update_zn_flags(cpu_A);
     return true;
 }
