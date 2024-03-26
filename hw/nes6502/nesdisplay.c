@@ -108,6 +108,7 @@ int vtx_sz = 0;
 PixelBuf bg, bbg, fg;
 static int color_index;
 static int g_set_bg_color;
+static int g_flip;
 static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
                              int width, int pitch)
 {
@@ -120,15 +121,24 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
     int y;
     int pixel_index;
 
+    if (g_flip == 0) {
+        return;
+    } 
+
     if (g_set_bg_color) {
         if (color_index >= 64 || color_index < 0) {
             printf("nesdisplay err wrong color_index: %d\n", color_index);
             g_set_bg_color = 0;
             return;
         }
-        memset(buf, color_map[color_index], 512 * 480 * 4);
+
+        for (int i = 0; i < 512; i++) {
+            for (int j = 0; j < 480; j++) {
+                buf[i * 480 + j] = color_map[color_index];
+            }
+        }
+        // memset(buf, color_map[color_index], 512 * 480 * 4);
         g_set_bg_color = 0;
-        return;
     }
 
     for (int i = 0; i < vtx_sz; i++) {
@@ -143,6 +153,8 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
     }
 
     vtx_sz = 0;
+    // memset(vtx, 0, sizeof(NESFB_VERTEX) * 1000000);
+    g_flip = 0;
 }
 
 static void nextfb_update(void *opaque)
@@ -195,6 +207,7 @@ static uint64_t nesfb_read(void *opaque, hwaddr addr, unsigned size)
 
 void nes_flip_display(void *opaque)
 {
+    g_flip = 1;
     nextfb_update(opaque);
 }
 

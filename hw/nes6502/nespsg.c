@@ -45,9 +45,10 @@ static int key_index[10];
 static int nes_psg_query_key(int ch)
 {
     if (key_arr[ch]) {
-        if (key_index[ch] == 15) {
+        if (key_index[ch] == 30) {
             key_arr[ch] = 0;
             key_index[ch] = 0;
+            return 0;
         }
         key_index[ch]++;
         return 1;
@@ -137,6 +138,13 @@ static void nextkbd_event(void *opaque, int ch)
     //     memset(key_arr, 0, sizeof(*key_arr));
     //     key_index = 0;
     // }
+
+    NesKBDState *s = NES_KBD(opaque);
+    KBDQueue *q = &s->queue;
+
+    if (q->count >= KBD_QUEUE_SIZE) {
+        return;
+    }
 
     switch (ch) {
         case 17: //w
