@@ -43,7 +43,7 @@
 #include "tb-hash.h"
 #include "tb-context.h"
 #include "internal.h"
-#include "/root/code/nes6502-qemu/target/nes6502/litenes_cpu.h"
+// #include "/root/code/nes6502-qemu/target/nes6502/litenes_cpu.h"
 /* -icount align implementation. */
 
 typedef struct SyncClocks {
@@ -972,7 +972,7 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
             tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
             // printf("tb pc 0x%x\n", pc);
 
-            fprintf(g_fp, "tb pc 0x%x\n", pc);
+            // fprintf(g_fp, "tb pc 0x%x\n", pc);
 
             if (tb == NULL) {
                 CPUJumpCache *jc;

@@ -1038,7 +1038,6 @@ static bool trans_LDX_IM(DisasContext *ctx, arg_LDX_IM *a)
 
 static bool trans_LDX_ZEROPAGE(DisasContext *ctx, arg_LDX_ZEROPAGE *a)
 {
-    printf("trans_LDX_ZEROPAGE\n");
     cpu_address_zero_page(a->imm);
     tcg_gen_mov_tl(cpu_X, op_value);
     cpu_update_zn_flags(cpu_X);
@@ -1047,7 +1046,6 @@ static bool trans_LDX_ZEROPAGE(DisasContext *ctx, arg_LDX_ZEROPAGE *a)
 
 static bool trans_LDX_ZEROPAGE_Y(DisasContext *ctx, arg_LDX_ZEROPAGE_Y *a)
 {
-        printf("trans_LDX_ZEROPAGE_Y\n");
     cpu_address_zero_page_y(a->imm);
     tcg_gen_mov_tl(cpu_X, op_value);
     cpu_update_zn_flags(cpu_X);
@@ -2175,16 +2173,16 @@ static bool trans_BRK(DisasContext *ctx, arg_BRK *a)
 static void translate(DisasContext *ctx)
 {
     uint32_t opcode;
-    target_long npc_t = ctx->base.pc_next;
+    // target_long npc_t = ctx->base.pc_next;
     opcode = decode_insn_load(ctx);
-    uint16_t op = opcode >> 24;
+    // uint16_t op = opcode >> 24;
 
 /*
 opcode 0xa5 pc 0xc1e1 LDA zero_page
 opcode 0xf0 pc 0xc1e3 BEQ relative
 */
-    printf("opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
-    fprintf(g_fp, "opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
+    // printf("opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
+    // fprintf(g_fp, "opcode 0x%x pc 0x%x %s %s\n", op, npc_t, cpu_op_name[op], cpu_op_address_mode[op]);
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);
         ctx->base.is_jmp = DISAS_NORETURN;
